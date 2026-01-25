@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 config();
 
 const app = express();
-const PORT = process.env.PORT || 5173;
+const PORT = process.env.PORT || 5000;
 
 // Security middleware
 app.use(
