@@ -115,7 +115,7 @@ function ResultCard({ result, isSelected, onClick }) {
       </div>
 
       {/* AI Analysis */}
-      {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
+      {/* {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
         <div className="flex items-start gap-2 p-2 rounded-lg bg-accent/10 border border-accent/20">
           <Sparkles className="w-4 h-4 text-accent-light flex-shrink-0 mt-0.5" />
           <div className="text-xs">
@@ -129,7 +129,7 @@ function ResultCard({ result, isSelected, onClick }) {
             </p>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Address */}
       <div className="flex items-start gap-2 text-sm text-gray-400">
