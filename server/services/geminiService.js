@@ -43,7 +43,7 @@ export async function analyzeReviewsForCriteria(places, criteria) {
     }));
   }
 
-  const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const results = await Promise.all(
     places.map(async (place) => {
