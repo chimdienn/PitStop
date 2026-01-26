@@ -13,17 +13,24 @@ function App() {
   const [origin, setOrigin] = useState(null);
   const [destination, setDestination] = useState(null);
   const [query, setQuery] = useState("");
-  const [maxDetour, setMaxDetour] = useState(12);
   const [useAI, setUseAI] = useState(false);
 
   // Results state
-  const [results, setResults] = useState(null);
+  const [allResults, setAllResults] = useState(null); // Store all 10 results
+  const [showAll, setShowAll] = useState(false); // Show 5 or 10
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   const [primaryRoute, setPrimaryRoute] = useState(null);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Get displayed results (5 or 10)
+  const displayedResults = allResults
+    ? showAll
+      ? allResults
+      : allResults.slice(0, 5)
+    : null;
 
   // Handle form submission
   const handleSearch = useCallback(async () => {
@@ -34,26 +41,25 @@ function App() {
 
     setIsLoading(true);
     setError(null);
-    setResults(null);
+    setAllResults(null);
+    setShowAll(false);
 
     try {
       const response = await optimizeRoute({
         origin: { lat: origin.lat, lng: origin.lng },
         destination: { lat: destination.lat, lng: destination.lng },
         query: query.trim(),
-        maxDetourMinutes: maxDetour,
+        maxResults: 10, // Always request 10
         useAI: useAI,
       });
 
       if (response.success) {
         setPrimaryRoute(response.primaryRoute);
-        setResults(response.results);
+        setAllResults(response.results);
         setSelectedResultIndex(0);
 
         if (response.results.length === 0) {
-          setError(
-            response.message || "No results found within your detour tolerance",
-          );
+          setError(response.message || "No results found along this route");
         }
       } else {
         setError(response.error || "Something went wrong");
@@ -64,23 +70,29 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [origin, destination, query, maxDetour, useAI]);
+  }, [origin, destination, query, useAI]);
 
   // Handle quick chip selection
   const handleChipSelect = useCallback((chipQuery) => {
     setQuery(chipQuery);
   }, []);
 
-  // Handle result selection (from carousel or map)
+  // Handle result selection
   const handleResultSelect = useCallback((index) => {
     setSelectedResultIndex(index);
   }, []);
 
-  // Clear results and start over
+  // Handle show more
+  const handleShowMore = useCallback(() => {
+    setShowAll(true);
+  }, []);
+
+  // Clear results
   const handleClear = useCallback(() => {
-    setResults(null);
+    setAllResults(null);
     setPrimaryRoute(null);
     setSelectedResultIndex(0);
+    setShowAll(false);
     setError(null);
   }, []);
 
@@ -120,15 +132,13 @@ function App() {
           setDestination={setDestination}
           query={query}
           setQuery={setQuery}
-          maxDetour={maxDetour}
-          setMaxDetour={setMaxDetour}
           useAI={useAI}
           setUseAI={setUseAI}
           onSearch={handleSearch}
           onChipSelect={handleChipSelect}
           onClear={handleClear}
           isLoading={isLoading}
-          hasResults={results !== null}
+          hasResults={allResults !== null}
           error={error}
         />
 
@@ -138,18 +148,22 @@ function App() {
             origin={origin}
             destination={destination}
             primaryRoute={primaryRoute}
-            selectedResult={results?.[selectedResultIndex] || null}
-            results={results}
+            selectedResult={displayedResults?.[selectedResultIndex] || null}
+            results={displayedResults}
             selectedIndex={selectedResultIndex}
             onSelectResult={handleResultSelect}
           />
 
           {/* Results Carousel */}
-          {results && results.length > 0 && (
+          {displayedResults && displayedResults.length > 0 && (
             <ResultsCarousel
-              results={results}
+              results={displayedResults}
               selectedIndex={selectedResultIndex}
               onSelect={handleResultSelect}
+              onShowMore={
+                allResults && allResults.length > 5 ? handleShowMore : null
+              }
+              showingAll={showAll || (allResults && allResults.length <= 5)}
             />
           )}
 
