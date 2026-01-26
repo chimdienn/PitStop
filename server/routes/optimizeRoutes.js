@@ -10,7 +10,7 @@ router.post("/optimize", async (req, res) => {
       origin,
       destination,
       query,
-      maxResults = 10,
+      maxResults = 20,
       useAI = false,
     } = req.body;
 
@@ -21,7 +21,7 @@ router.post("/optimize", async (req, res) => {
       });
     }
 
-    const resultCount = Math.max(1, Math.min(10, maxResults));
+    const resultCount = Math.max(1, Math.min(20, maxResults));
 
     console.log(`\n🔍 Optimization request:`);
     console.log(`   Origin: ${JSON.stringify(origin)}`);
@@ -63,7 +63,7 @@ router.post("/optimize", async (req, res) => {
     const places = await googleMapsService.searchPlacesAlongRoute(
       query,
       primaryRoute.encodedPolyline,
-      20, // Get more results for better selection
+      25, // Get more results for better selection
     );
     console.log(`   Found ${places.length} potential stops`);
 
@@ -101,7 +101,7 @@ router.post("/optimize", async (req, res) => {
 
           return {
             place,
-            detourSeconds: Math.max(0, detourSeconds), // Ensure non-negative
+            detourSeconds: Math.max(0, detourSeconds),
             detourMinutes: Math.max(0, Math.round(detourSeconds / 60)),
             totalDurationSeconds: detourRoute.durationSeconds,
             detourRoute,
