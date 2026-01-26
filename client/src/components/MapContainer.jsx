@@ -1,5 +1,5 @@
-import { useCallback, useState, useMemo, useEffect } from "react";
-import { GoogleMap, Polyline, Marker } from "@react-google-maps/api";
+import { useCallback, useState, useMemo, useEffect, useRef } from "react";
+import { GoogleMap, Marker } from "@react-google-maps/api";
 import polyline from "polyline-encoded";
 
 // Dark mode map styles
@@ -91,6 +91,7 @@ function MapContainer({
   userLocation,
 }) {
   const [map, setMap] = useState(null);
+  const polylinesRef = useRef([]);
 
   // Get the currently selected result
   const selectedResult = results?.[selectedIndex] || null;
@@ -112,7 +113,7 @@ function MapContainer({
     if (origin) return { lat: origin.lat, lng: origin.lng };
     if (destination) return { lat: destination.lat, lng: destination.lng };
     if (userLocation) return userLocation;
-    return { lat: 10.8231, lng: 106.6297 }; // Default to Ho Chi Minh City
+    return { lat: 10.8231, lng: 106.6297 };
   }, [origin, destination, userLocation]);
 
   // Calculate map bounds
@@ -144,12 +145,60 @@ function MapContainer({
     [bounds],
   );
 
-  // Update bounds when selection changes
+  // Clear all existing polylines
+  const clearPolylines = useCallback(() => {
+    polylinesRef.current.forEach((p) => {
+      if (p) {
+        p.setMap(null);
+      }
+    });
+    polylinesRef.current = [];
+  }, []);
+
+  // Draw the selected route using native Google Maps API
   useEffect(() => {
-    if (map && bounds) {
+    if (!map) return;
+
+    // Clear existing polylines first
+    clearPolylines();
+
+    // Draw new route if we have a path
+    if (selectedPath.length > 0) {
+      // Glow effect
+      const glowPolyline = new window.google.maps.Polyline({
+        path: selectedPath,
+        strokeColor: "#7c3aed",
+        strokeOpacity: 0.3,
+        strokeWeight: 12,
+        zIndex: 9,
+        map: map,
+      });
+
+      // Main line
+      const mainPolyline = new window.google.maps.Polyline({
+        path: selectedPath,
+        strokeColor: "#a78bfa",
+        strokeOpacity: 1,
+        strokeWeight: 5,
+        zIndex: 10,
+        map: map,
+      });
+
+      polylinesRef.current = [glowPolyline, mainPolyline];
+    }
+
+    // Fit bounds
+    if (bounds) {
       map.fitBounds(bounds, { padding: 100 });
     }
-  }, [map, bounds, selectedIndex]);
+  }, [map, selectedPath, selectedIndex, bounds, clearPolylines]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearPolylines();
+    };
+  }, [clearPolylines]);
 
   const mapOptions = useMemo(
     () => ({
@@ -204,34 +253,6 @@ function MapContainer({
       options={mapOptions}
       onLoad={onLoad}
     >
-      {/* Only render the selected route */}
-      {selectedPath.length > 0 && (
-        <>
-          {/* Glow effect */}
-          <Polyline
-            key={`glow-${selectedIndex}`}
-            path={selectedPath}
-            options={{
-              strokeColor: "#7c3aed",
-              strokeOpacity: 0.3,
-              strokeWeight: 12,
-              zIndex: 9,
-            }}
-          />
-          {/* Main line */}
-          <Polyline
-            key={`line-${selectedIndex}`}
-            path={selectedPath}
-            options={{
-              strokeColor: "#a78bfa",
-              strokeOpacity: 1,
-              strokeWeight: 5,
-              zIndex: 10,
-            }}
-          />
-        </>
-      )}
-
       {/* Origin Marker */}
       {origin && (
         <Marker
