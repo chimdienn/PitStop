@@ -6,6 +6,7 @@ import {
   MapPin,
   CheckCircle,
   XCircle,
+  Timer,
 } from "lucide-react";
 
 function ResultsCarousel({ results, selectedIndex, onSelect }) {
@@ -30,6 +31,15 @@ function ResultCard({ result, isSelected, onClick }) {
     e.stopPropagation();
     window.open(result.googleMapsUrl, "_blank", "noopener,noreferrer");
   };
+
+  // Calculate total travel time in minutes
+  const totalTravelMinutes = Math.round(
+    result.detourRoute.durationSeconds / 60,
+  );
+  const hours = Math.floor(totalTravelMinutes / 60);
+  const minutes = totalTravelMinutes % 60;
+  const totalTimeDisplay =
+    hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
 
   return (
     <div
@@ -57,12 +67,18 @@ function ResultCard({ result, isSelected, onClick }) {
         </div>
       </div>
 
-      {/* Detour Time - Prominent */}
-      <div className="flex items-center gap-2">
-        <Clock className="w-5 h-5 text-accent-light" />
-        <span className="text-2xl font-bold text-accent-light">
-          {result.detour.addedText}
-        </span>
+      {/* Time Info */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Clock className="w-5 h-5 text-accent-light" />
+          <span className="text-xl font-bold text-accent-light">
+            {result.detour.addedText}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 text-gray-400 text-sm">
+          <Timer className="w-4 h-4" />
+          <span>Total: {totalTimeDisplay}</span>
+        </div>
       </div>
 
       {/* Rating & Status */}
