@@ -79,19 +79,21 @@ const MAP_STYLES = [
   },
 ];
 
-const DEFAULT_CENTER = { lat: 1.3521, lng: 103.8198 };
 const DEFAULT_ZOOM = 12;
 
 function MapContainer({
   origin,
   destination,
   primaryRoute,
-  selectedResult,
   results,
   selectedIndex,
   onSelectResult,
+  userLocation,
 }) {
   const [map, setMap] = useState(null);
+
+  // Get the currently selected result
+  const selectedResult = results?.[selectedIndex] || null;
 
   // Decode polyline for selected result only
   const selectedPath = useMemo(() => {
@@ -103,11 +105,19 @@ function MapContainer({
     } catch {
       return [];
     }
-  }, [selectedResult]);
+  }, [selectedResult?.detourRoute?.encodedPolyline]);
+
+  // Calculate map center
+  const mapCenter = useMemo(() => {
+    if (origin) return { lat: origin.lat, lng: origin.lng };
+    if (destination) return { lat: destination.lat, lng: destination.lng };
+    if (userLocation) return userLocation;
+    return { lat: 10.8231, lng: 106.6297 }; // Default to Ho Chi Minh City
+  }, [origin, destination, userLocation]);
 
   // Calculate map bounds
   const bounds = useMemo(() => {
-    if (!origin && !destination) return null;
+    if (!origin && !destination && !selectedResult) return null;
 
     const points = [];
     if (origin) points.push(origin);
@@ -134,11 +144,12 @@ function MapContainer({
     [bounds],
   );
 
+  // Update bounds when selection changes
   useEffect(() => {
     if (map && bounds) {
       map.fitBounds(bounds, { padding: 100 });
     }
-  }, [map, bounds]);
+  }, [map, bounds, selectedIndex]);
 
   const mapOptions = useMemo(
     () => ({
@@ -188,7 +199,7 @@ function MapContainer({
   return (
     <GoogleMap
       mapContainerClassName="w-full h-full"
-      center={origin || destination || DEFAULT_CENTER}
+      center={mapCenter}
       zoom={DEFAULT_ZOOM}
       options={mapOptions}
       onLoad={onLoad}
@@ -198,6 +209,7 @@ function MapContainer({
         <>
           {/* Glow effect */}
           <Polyline
+            key={`glow-${selectedIndex}`}
             path={selectedPath}
             options={{
               strokeColor: "#7c3aed",
@@ -208,6 +220,7 @@ function MapContainer({
           />
           {/* Main line */}
           <Polyline
+            key={`line-${selectedIndex}`}
             path={selectedPath}
             options={{
               strokeColor: "#a78bfa",
