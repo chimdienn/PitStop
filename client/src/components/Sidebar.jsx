@@ -32,6 +32,7 @@ function Sidebar({
   isLoading,
   hasResults,
   error,
+  userLocation,
 }) {
   const handleSubmit = useCallback(
     (e) => {
@@ -88,6 +89,7 @@ function Sidebar({
             onChange={setOrigin}
             placeholder="Enter starting point..."
             onKeyPress={handleKeyPress}
+            userLocation={userLocation}
           />
         </div>
 
@@ -102,6 +104,7 @@ function Sidebar({
             onChange={setDestination}
             placeholder="Enter destination..."
             onKeyPress={handleKeyPress}
+            userLocation={userLocation}
           />
         </div>
 
