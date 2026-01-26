@@ -79,7 +79,7 @@ const MAP_STYLES = [
   },
 ];
 
-const DEFAULT_CENTER = { lat: 1.3521, lng: 103.8198 }; // Singapore
+const DEFAULT_CENTER = { lat: 1.3521, lng: 103.8198 };
 const DEFAULT_ZOOM = 12;
 
 function MapContainer({
@@ -93,20 +93,17 @@ function MapContainer({
 }) {
   const [map, setMap] = useState(null);
 
-  // Decode polylines for all results
-  const decodedRoutes = useMemo(() => {
-    if (!results) return [];
-    return results.map((result) => {
-      if (!result?.detourRoute?.encodedPolyline) return [];
-      try {
-        return polyline
-          .decode(result.detourRoute.encodedPolyline)
-          .map(([lat, lng]) => ({ lat, lng }));
-      } catch {
-        return [];
-      }
-    });
-  }, [results]);
+  // Decode polyline for selected result only
+  const selectedPath = useMemo(() => {
+    if (!selectedResult?.detourRoute?.encodedPolyline) return [];
+    try {
+      return polyline
+        .decode(selectedResult.detourRoute.encodedPolyline)
+        .map(([lat, lng]) => ({ lat, lng }));
+    } catch {
+      return [];
+    }
+  }, [selectedResult]);
 
   // Calculate map bounds
   const bounds = useMemo(() => {
@@ -127,7 +124,6 @@ function MapContainer({
     return bounds;
   }, [origin, destination, selectedResult?.location]);
 
-  // Fit bounds when they change
   const onLoad = useCallback(
     (mapInstance) => {
       setMap(mapInstance);
@@ -138,7 +134,6 @@ function MapContainer({
     [bounds],
   );
 
-  // Update bounds when routes change
   useEffect(() => {
     if (map && bounds) {
       map.fitBounds(bounds, { padding: 100 });
@@ -159,7 +154,6 @@ function MapContainer({
     [],
   );
 
-  // Custom marker icons
   const originIcon = useMemo(
     () => ({
       path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
@@ -184,7 +178,6 @@ function MapContainer({
     [],
   );
 
-  // Handle marker click
   const handleMarkerClick = useCallback(
     (index) => {
       onSelectResult(index);
@@ -200,31 +193,12 @@ function MapContainer({
       options={mapOptions}
       onLoad={onLoad}
     >
-      {/* Render all route polylines */}
-      {decodedRoutes.map((path, index) => {
-        if (path.length === 0) return null;
-
-        const isSelected = index === selectedIndex;
-
-        return (
+      {/* Only render the selected route */}
+      {selectedPath.length > 0 && (
+        <>
+          {/* Glow effect */}
           <Polyline
-            key={`route-${index}`}
-            path={path}
-            options={{
-              strokeColor: isSelected ? "#a78bfa" : "#4b5563",
-              strokeOpacity: isSelected ? 1 : 0.4,
-              strokeWeight: isSelected ? 5 : 3,
-              zIndex: isSelected ? 10 : 1,
-            }}
-          />
-        );
-      })}
-
-      {/* Glow effect for selected route */}
-      {decodedRoutes[selectedIndex] &&
-        decodedRoutes[selectedIndex].length > 0 && (
-          <Polyline
-            path={decodedRoutes[selectedIndex]}
+            path={selectedPath}
             options={{
               strokeColor: "#7c3aed",
               strokeOpacity: 0.3,
@@ -232,7 +206,18 @@ function MapContainer({
               zIndex: 9,
             }}
           />
-        )}
+          {/* Main line */}
+          <Polyline
+            path={selectedPath}
+            options={{
+              strokeColor: "#a78bfa",
+              strokeOpacity: 1,
+              strokeWeight: 5,
+              zIndex: 10,
+            }}
+          />
+        </>
+      )}
 
       {/* Origin Marker */}
       {origin && (
