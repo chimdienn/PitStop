@@ -1,25 +1,10 @@
-/**
- * API Service
- * Handles all communication with the backend
- */
-
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
-/**
- * Optimize route with pit stop
- * @param {Object} params - Route optimization parameters
- * @param {Object} params.origin - { lat, lng }
- * @param {Object} params.destination - { lat, lng }
- * @param {string} params.query - Search query
- * @param {number} params.maxDetourMinutes - Maximum detour tolerance
- * @param {boolean} params.useAI - Whether to use AI analysis
- * @returns {Promise<Object>} Optimization results
- */
 export async function optimizeRoute({
   origin,
   destination,
   query,
-  maxDetourMinutes,
+  maxResults,
   useAI,
 }) {
   const response = await fetch(`${API_BASE}/api/optimize`, {
@@ -31,7 +16,7 @@ export async function optimizeRoute({
       origin,
       destination,
       query,
-      maxDetourMinutes,
+      maxResults,
       useAI,
     }),
   });
@@ -44,17 +29,10 @@ export async function optimizeRoute({
   return response.json();
 }
 
-/**
- * Geocode an address to coordinates
- * @param {string} address - Address to geocode
- * @returns {Promise<Object>} { lat, lng, formattedAddress }
- */
 export async function geocodeAddress(address) {
   const response = await fetch(`${API_BASE}/api/geocode`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ address }),
   });
 
@@ -66,11 +44,6 @@ export async function geocodeAddress(address) {
   return response.json();
 }
 
-/**
- * Get place details
- * @param {string} placeId - Google Place ID
- * @returns {Promise<Object>} Place details
- */
 export async function getPlaceDetails(placeId) {
   const response = await fetch(`${API_BASE}/api/place/${placeId}`);
 
@@ -82,18 +55,9 @@ export async function getPlaceDetails(placeId) {
   return response.json();
 }
 
-/**
- * Health check
- * @returns {Promise<Object>} Server status
- */
 export async function healthCheck() {
   const response = await fetch(`${API_BASE}/api/health`);
   return response.json();
 }
 
-export default {
-  optimizeRoute,
-  geocodeAddress,
-  getPlaceDetails,
-  healthCheck,
-};
+export default { optimizeRoute, geocodeAddress, getPlaceDetails, healthCheck };
