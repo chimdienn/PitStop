@@ -14,6 +14,7 @@ function App() {
   const [destination, setDestination] = useState(null);
   const [query, setQuery] = useState("");
   const [maxDetour, setMaxDetour] = useState(12);
+  const [useAI, setUseAI] = useState(false);
 
   // Results state
   const [results, setResults] = useState(null);
@@ -41,6 +42,7 @@ function App() {
         destination: { lat: destination.lat, lng: destination.lng },
         query: query.trim(),
         maxDetourMinutes: maxDetour,
+        useAI: useAI,
       });
 
       if (response.success) {
@@ -62,14 +64,14 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [origin, destination, query, maxDetour]);
+  }, [origin, destination, query, maxDetour, useAI]);
 
   // Handle quick chip selection
   const handleChipSelect = useCallback((chipQuery) => {
     setQuery(chipQuery);
   }, []);
 
-  // Handle result selection
+  // Handle result selection (from carousel or map)
   const handleResultSelect = useCallback((index) => {
     setSelectedResultIndex(index);
   }, []);
@@ -120,6 +122,8 @@ function App() {
           setQuery={setQuery}
           maxDetour={maxDetour}
           setMaxDetour={setMaxDetour}
+          useAI={useAI}
+          setUseAI={setUseAI}
           onSearch={handleSearch}
           onChipSelect={handleChipSelect}
           onClear={handleClear}
@@ -136,6 +140,8 @@ function App() {
             primaryRoute={primaryRoute}
             selectedResult={results?.[selectedResultIndex] || null}
             results={results}
+            selectedIndex={selectedResultIndex}
+            onSelectResult={handleResultSelect}
           />
 
           {/* Results Carousel */}
