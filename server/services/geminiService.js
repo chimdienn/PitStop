@@ -61,61 +61,131 @@ function markCombinationFailed(keyIndex, modelIndex) {
   failedCombinations.set(key, Date.now());
 }
 
-async function tryAnalyzeWithModel(client, modelName, places, criteria) {
+// Build a single batched prompt for all places
+function buildBatchedPrompt(places, criteria) {
+  const placesData = places.map((place, index) => {
+    const reviewTexts = (place.reviews || [])
+      .slice(0, 3) // Limit reviews per place to keep prompt size manageable
+      .map((r) => r.text?.text || r.text || "")
+      .filter((text) => text.length > 0);
+
+    return {
+      index,
+      name: place.displayName?.text || place.displayName || "Unknown",
+      rating: place.rating || "N/A",
+      reviewCount: place.userRatingCount || 0,
+      reviews: reviewTexts.length > 0 ? reviewTexts : ["No reviews available"],
+    };
+  });
+
+  const prompt = `You are analyzing multiple places to determine how well each matches specific criteria.
+
+CRITERIA TO EVALUATE: "${criteria}"
+
+PLACES TO ANALYZE:
+${placesData
+  .map(
+    (p) => `
+[Place ${p.index}] ${p.name}
+Rating: ${p.rating} (${p.reviewCount} reviews)
+Reviews:
+${p.reviews.map((r, i) => `  ${i + 1}. "${r.substring(0, 200)}${r.length > 200 ? "..." : ""}"`).join("\n")}
+`,
+  )
+  .join("\n---\n")}
+
+For EACH place, provide:
+1. A confidence score from 0.0 to 1.0 indicating how well it matches the criteria
+2. A brief one-sentence explanation (max 15 words)
+
+IMPORTANT: Respond ONLY with a valid JSON array in this exact format, with one object per place in the same order:
+[
+  {"index": 0, "confidence": 0.X, "explanation": "Brief explanation"},
+  {"index": 1, "confidence": 0.X, "explanation": "Brief explanation"},
+  ...
+]
+
+Do not include any text before or after the JSON array.`;
+
+  return prompt;
+}
+
+// Parse the batched response
+function parseBatchedResponse(responseText, placesCount) {
+  try {
+    // Try to extract JSON array from response
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.error("Could not find JSON array in response");
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    if (!Array.isArray(parsed)) {
+      console.error("Parsed response is not an array");
+      return null;
+    }
+
+    // Create a map for quick lookup
+    const resultsMap = new Map();
+    parsed.forEach((item) => {
+      if (
+        typeof item.index === "number" &&
+        typeof item.confidence === "number"
+      ) {
+        resultsMap.set(item.index, {
+          confidence: Math.max(0, Math.min(1, item.confidence)),
+          explanation: item.explanation || "No explanation provided",
+        });
+      }
+    });
+
+    return resultsMap;
+  } catch (error) {
+    console.error("Failed to parse batched response:", error.message);
+    return null;
+  }
+}
+
+async function tryAnalyzeWithModelBatched(client, modelName, places, criteria) {
   const model = client.getGenerativeModel({ model: modelName });
 
-  const results = await Promise.all(
-    places.map(async (place) => {
-      const reviewTexts = (place.reviews || [])
-        .slice(0, 5)
-        .map((r) => r.text?.text || r.text || "")
-        .filter((text) => text.length > 0);
+  // Build single batched prompt
+  const prompt = buildBatchedPrompt(places, criteria);
 
-      if (reviewTexts.length === 0) {
-        return {
-          ...place,
-          aiConfidence: 0.5,
-          aiAnalysis: "No reviews available for analysis",
-        };
-      }
+  console.log(`   Sending batched request for ${places.length} places...`);
 
-      const prompt = `You are analyzing customer reviews for a place to determine if it matches specific criteria.
+  // Single API call for all places
+  const result = await model.generateContent(prompt);
+  const responseText = result.response.text();
 
-Criteria to evaluate: "${criteria}"
+  // Parse the batched response
+  const resultsMap = parseBatchedResponse(responseText, places.length);
 
-Place: ${place.displayName?.text || place.displayName}
-Rating: ${place.rating || "N/A"} (${place.userRatingCount || 0} reviews)
+  if (!resultsMap) {
+    throw new Error("Failed to parse AI response");
+  }
 
-Recent reviews:
-${reviewTexts.map((text, i) => `${i + 1}. "${text}"`).join("\n")}
+  // Map results back to places
+  const results = places.map((place, index) => {
+    const aiResult = resultsMap.get(index);
 
-Based on these reviews, provide:
-1. A confidence score from 0.0 to 1.0 indicating how well this place matches the criteria
-2. A brief one-sentence explanation
-
-Respond ONLY in this exact JSON format:
-{"confidence": 0.X, "explanation": "Brief explanation"}`;
-
-      const result = await model.generateContent(prompt);
-      const responseText = result.response.text();
-
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          ...place,
-          aiConfidence: Math.max(0, Math.min(1, parsed.confidence)),
-          aiAnalysis: parsed.explanation,
-        };
-      }
-
+    if (aiResult) {
       return {
         ...place,
-        aiConfidence: 0.5,
-        aiAnalysis: "Unable to parse AI response",
+        aiConfidence: aiResult.confidence,
+        aiAnalysis: aiResult.explanation,
       };
-    }),
-  );
+    }
+
+    // Fallback if this place wasn't in the response
+    return {
+      ...place,
+      aiConfidence: 0.5,
+      aiAnalysis: "Analysis not available for this place",
+    };
+  });
 
   return results;
 }
@@ -152,13 +222,15 @@ export async function analyzeReviewsForCriteria(places, criteria) {
 
       try {
         console.log(`🤖 Trying ${modelName} with API key ${keyIndex + 1}...`);
-        const results = await tryAnalyzeWithModel(
+        const results = await tryAnalyzeWithModelBatched(
           client,
           modelName,
           places,
           criteria,
         );
-        console.log(`✅ Success with ${modelName}`);
+        console.log(
+          `✅ Success with ${modelName} (1 request for ${places.length} places)`,
+        );
         return results;
       } catch (error) {
         console.error(

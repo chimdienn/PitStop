@@ -235,7 +235,6 @@ function Sidebar({
             <Sparkles className="w-4 h-4 text-accent-light" />
             <span className="text-sm text-gray-300">AI-powered search</span>
           </label>
-          <span className="text-xs text-gray-500">Analyzes reviews</span>
         </div>
 
         {/* Error Message */}
