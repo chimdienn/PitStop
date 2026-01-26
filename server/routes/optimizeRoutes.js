@@ -18,12 +18,19 @@ const router = express.Router();
  *   origin: { lat: number, lng: number } | string (address),
  *   destination: { lat: number, lng: number } | string (address),
  *   query: string (search criteria),
- *   maxDetourMinutes: number (5-30)
+ *   maxDetourMinutes: number (5-30),
+ *   useAI: boolean (whether to use AI analysis)
  * }
  */
 router.post("/optimize", async (req, res) => {
   try {
-    const { origin, destination, query, maxDetourMinutes = 15 } = req.body;
+    const {
+      origin,
+      destination,
+      query,
+      maxDetourMinutes = 15,
+      useAI = false,
+    } = req.body;
 
     // Validate inputs
     if (!origin || !destination || !query) {
@@ -41,6 +48,7 @@ router.post("/optimize", async (req, res) => {
     console.log(`   Destination: ${JSON.stringify(destination)}`);
     console.log(`   Query: "${query}"`);
     console.log(`   Max detour: ${detourTolerance} minutes`);
+    console.log(`   Use AI: ${useAI}`);
 
     // Resolve addresses to coordinates if needed
     let originCoords = origin;
@@ -153,11 +161,11 @@ router.post("/optimize", async (req, res) => {
       });
     }
 
-    // STEP 4: AI Vibe Check (if complex query)
+    // STEP 4: AI Vibe Check (if useAI is enabled and Gemini is configured)
     let rankedPlaces = validPlaces.slice(0, 5); // Top 5 for AI analysis
 
-    if (geminiService.isComplexQuery(query) && geminiService.isConfigured()) {
-      console.log("\n🤖 Step 4: AI analysis for complex query...");
+    if (useAI && geminiService.isConfigured()) {
+      console.log("\n🤖 Step 4: AI analysis enabled by user...");
 
       // Get detailed reviews for top candidates
       const placesWithReviews = await Promise.all(
@@ -206,10 +214,10 @@ router.post("/optimize", async (req, res) => {
       });
 
       console.log("   AI analysis complete");
+    } else if (useAI && !geminiService.isConfigured()) {
+      console.log("\n⚠️  Step 4: AI requested but Gemini not configured");
     } else {
-      console.log(
-        "\n⏭️  Step 4: Skipping AI analysis (simple query or Gemini not configured)",
-      );
+      console.log("\n⏭️  Step 4: AI analysis not requested");
     }
 
     // STEP 5: Format and return top 3 results
@@ -276,6 +284,7 @@ router.post("/optimize", async (req, res) => {
       destination: destinationCoords,
       query,
       maxDetourMinutes: detourTolerance,
+      useAI,
       results: topResults,
       totalCandidatesFound: places.length,
       candidatesWithinTolerance: validPlaces.length,
