@@ -7,6 +7,7 @@ import {
   Coffee,
   Banknote,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import LocationAutocomplete from "./LocationAutocomplete";
 
@@ -25,6 +26,8 @@ function Sidebar({
   setQuery,
   maxDetour,
   setMaxDetour,
+  useAI,
+  setUseAI,
   onSearch,
   onChipSelect,
   onClear,
@@ -149,7 +152,7 @@ function Sidebar({
           </div>
           <input
             type="range"
-            min="2"
+            min="5"
             max="30"
             step="1"
             value={maxDetour}
@@ -157,9 +160,27 @@ function Sidebar({
             className="w-full accent-accent"
           />
           <div className="flex justify-between text-xs text-gray-500">
-            <span>2 min</span>
+            <span>5 min</span>
             <span>30 min</span>
           </div>
+        </div>
+
+        {/* AI Toggle */}
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-dark-700/50 border border-glass-border">
+          <input
+            type="checkbox"
+            id="useAI"
+            checked={useAI}
+            onChange={(e) => setUseAI(e.target.checked)}
+            className="w-4 h-4 rounded accent-accent cursor-pointer"
+          />
+          <label
+            htmlFor="useAI"
+            className="flex items-center gap-2 cursor-pointer flex-1"
+          >
+            <Sparkles className="w-4 h-4 text-accent-light" />
+            <span className="text-sm text-gray-300">AI-powered search</span>
+          </label>
         </div>
 
         {/* Error Message */}
