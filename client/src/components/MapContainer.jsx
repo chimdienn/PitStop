@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import { GoogleMap, Polyline, Marker } from "@react-google-maps/api";
 import polyline from "polyline-encoded";
 
@@ -88,31 +88,25 @@ function MapContainer({
   primaryRoute,
   selectedResult,
   results,
+  selectedIndex,
+  onSelectResult,
 }) {
   const [map, setMap] = useState(null);
 
-  // Decode polylines
-  const primaryPath = useMemo(() => {
-    if (!primaryRoute?.encodedPolyline) return [];
-    try {
-      return polyline
-        .decode(primaryRoute.encodedPolyline)
-        .map(([lat, lng]) => ({ lat, lng }));
-    } catch {
-      return [];
-    }
-  }, [primaryRoute?.encodedPolyline]);
-
-  const detourPath = useMemo(() => {
-    if (!selectedResult?.detourRoute?.encodedPolyline) return [];
-    try {
-      return polyline
-        .decode(selectedResult.detourRoute.encodedPolyline)
-        .map(([lat, lng]) => ({ lat, lng }));
-    } catch {
-      return [];
-    }
-  }, [selectedResult?.detourRoute?.encodedPolyline]);
+  // Decode polylines for all results
+  const decodedRoutes = useMemo(() => {
+    if (!results) return [];
+    return results.map((result) => {
+      if (!result?.detourRoute?.encodedPolyline) return [];
+      try {
+        return polyline
+          .decode(result.detourRoute.encodedPolyline)
+          .map(([lat, lng]) => ({ lat, lng }));
+      } catch {
+        return [];
+      }
+    });
+  }, [results]);
 
   // Calculate map bounds
   const bounds = useMemo(() => {
@@ -145,7 +139,7 @@ function MapContainer({
   );
 
   // Update bounds when routes change
-  useMemo(() => {
+  useEffect(() => {
     if (map && bounds) {
       map.fitBounds(bounds, { padding: 100 });
     }
@@ -190,6 +184,14 @@ function MapContainer({
     [],
   );
 
+  // Handle marker click
+  const handleMarkerClick = useCallback(
+    (index) => {
+      onSelectResult(index);
+    },
+    [onSelectResult],
+  );
+
   return (
     <GoogleMap
       mapContainerClassName="w-full h-full"
@@ -198,44 +200,39 @@ function MapContainer({
       options={mapOptions}
       onLoad={onLoad}
     >
-      {/* Primary Route (grey, underneath) */}
-      {primaryPath.length > 0 && (
-        <Polyline
-          path={primaryPath}
-          options={{
-            strokeColor: "#6b7280",
-            strokeOpacity: 0.6,
-            strokeWeight: 5,
-            zIndex: 1,
-          }}
-        />
-      )}
+      {/* Render all route polylines */}
+      {decodedRoutes.map((path, index) => {
+        if (path.length === 0) return null;
 
-      {/* Detour Route (accent color, on top) */}
-      {detourPath.length > 0 && (
-        <>
-          {/* Glow effect */}
+        const isSelected = index === selectedIndex;
+
+        return (
           <Polyline
-            path={detourPath}
+            key={`route-${index}`}
+            path={path}
+            options={{
+              strokeColor: isSelected ? "#a78bfa" : "#4b5563",
+              strokeOpacity: isSelected ? 1 : 0.4,
+              strokeWeight: isSelected ? 5 : 3,
+              zIndex: isSelected ? 10 : 1,
+            }}
+          />
+        );
+      })}
+
+      {/* Glow effect for selected route */}
+      {decodedRoutes[selectedIndex] &&
+        decodedRoutes[selectedIndex].length > 0 && (
+          <Polyline
+            path={decodedRoutes[selectedIndex]}
             options={{
               strokeColor: "#7c3aed",
               strokeOpacity: 0.3,
               strokeWeight: 12,
-              zIndex: 2,
+              zIndex: 9,
             }}
           />
-          {/* Main line */}
-          <Polyline
-            path={detourPath}
-            options={{
-              strokeColor: "#a78bfa",
-              strokeOpacity: 1,
-              strokeWeight: 5,
-              zIndex: 3,
-            }}
-          />
-        </>
-      )}
+        )}
 
       {/* Origin Marker */}
       {origin && (
@@ -243,7 +240,7 @@ function MapContainer({
           position={{ lat: origin.lat, lng: origin.lng }}
           icon={originIcon}
           title="Start"
-          zIndex={10}
+          zIndex={100}
         />
       )}
 
@@ -253,40 +250,39 @@ function MapContainer({
           position={{ lat: destination.lat, lng: destination.lng }}
           icon={destinationIcon}
           title="End"
-          zIndex={10}
+          zIndex={100}
         />
       )}
 
       {/* Pit Stop Markers */}
-      {results?.map((result, index) => (
-        <Marker
-          key={result.placeId}
-          position={result.location}
-          label={{
-            text: String(index + 1),
-            color:
-              selectedResult?.placeId === result.placeId
-                ? "#ffffff"
-                : "#a78bfa",
-            fontWeight: "bold",
-            fontSize: "14px",
-          }}
-          icon={{
-            path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z",
-            fillColor:
-              selectedResult?.placeId === result.placeId
-                ? "#7c3aed"
-                : "#1f2937",
-            fillOpacity: 1,
-            strokeColor: "#a78bfa",
-            strokeWeight: 2,
-            scale: 1.5,
-            anchor: new window.google.maps.Point(12, 22),
-            labelOrigin: new window.google.maps.Point(12, 9),
-          }}
-          zIndex={selectedResult?.placeId === result.placeId ? 20 : 5}
-        />
-      ))}
+      {results?.map((result, index) => {
+        const isSelected = index === selectedIndex;
+
+        return (
+          <Marker
+            key={result.placeId}
+            position={result.location}
+            onClick={() => handleMarkerClick(index)}
+            label={{
+              text: String(index + 1),
+              color: isSelected ? "#ffffff" : "#9ca3af",
+              fontWeight: "bold",
+              fontSize: "14px",
+            }}
+            icon={{
+              path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z",
+              fillColor: isSelected ? "#7c3aed" : "#374151",
+              fillOpacity: 1,
+              strokeColor: isSelected ? "#a78bfa" : "#6b7280",
+              strokeWeight: 2,
+              scale: isSelected ? 1.8 : 1.4,
+              anchor: new window.google.maps.Point(12, 22),
+              labelOrigin: new window.google.maps.Point(12, 9),
+            }}
+            zIndex={isSelected ? 50 : 20}
+          />
+        );
+      })}
     </GoogleMap>
   );
 }
