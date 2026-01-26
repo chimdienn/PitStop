@@ -9,9 +9,10 @@ import { optimizeRoute } from "./services/api";
 const GOOGLE_MAPS_LIBRARIES = ["places"];
 const STORAGE_KEY = "pitstop_route_history";
 const MAX_HISTORY_ITEMS = 20;
+const RESULTS_INCREMENT = 5;
+const MAX_DISPLAYED_RESULTS = 20;
 
 function App() {
-  // User location state
   const [userLocation, setUserLocation] = useState(null);
 
   // Form state
@@ -22,7 +23,7 @@ function App() {
 
   // Results state
   const [allResults, setAllResults] = useState(null);
-  const [showAll, setShowAll] = useState(false);
+  const [displayCount, setDisplayCount] = useState(RESULTS_INCREMENT); // 5, 10, 15, 20
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   const [primaryRoute, setPrimaryRoute] = useState(null);
 
@@ -33,7 +34,7 @@ function App() {
   // Route history state
   const [routeHistory, setRouteHistory] = useState([]);
 
-  // Load route history from localStorage on mount
+  // Load route history from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -45,7 +46,7 @@ function App() {
     }
   }, []);
 
-  // Save route history to localStorage
+  // Save to history
   const saveToHistory = useCallback((searchData) => {
     const newItem = {
       id: Date.now().toString(),
@@ -81,7 +82,6 @@ function App() {
     });
   }, []);
 
-  // Load a history item
   const handleLoadHistory = useCallback((item) => {
     setOrigin({ ...item.origin, address: item.originAddress });
     setDestination({ ...item.destination, address: item.destinationAddress });
@@ -89,7 +89,6 @@ function App() {
     setUseAI(item.useAI || false);
   }, []);
 
-  // Delete a history item
   const handleDeleteHistory = useCallback((id) => {
     setRouteHistory((prev) => {
       const updated = prev.filter((item) => item.id !== id);
@@ -102,7 +101,6 @@ function App() {
     });
   }, []);
 
-  // Clear all history
   const handleClearAllHistory = useCallback(() => {
     setRouteHistory([]);
     try {
@@ -112,7 +110,7 @@ function App() {
     }
   }, []);
 
-  // Detect user location via IP on mount
+  // Detect user location
   useEffect(() => {
     const detectUserLocation = async () => {
       try {
@@ -159,11 +157,16 @@ function App() {
     detectUserLocation();
   }, []);
 
+  // Get displayed results based on current display count
   const displayedResults = allResults
-    ? showAll
-      ? allResults
-      : allResults.slice(0, 5)
+    ? allResults.slice(0, Math.min(displayCount, allResults.length))
     : null;
+
+  // Check if we can show more or less
+  const canShowMore =
+    allResults &&
+    displayCount < Math.min(allResults.length, MAX_DISPLAYED_RESULTS);
+  const canShowLess = displayCount > RESULTS_INCREMENT;
 
   const handleSearch = useCallback(async () => {
     if (!origin || !destination || !query.trim()) {
@@ -174,14 +177,14 @@ function App() {
     setIsLoading(true);
     setError(null);
     setAllResults(null);
-    setShowAll(false);
+    setDisplayCount(RESULTS_INCREMENT);
 
     try {
       const response = await optimizeRoute({
         origin: { lat: origin.lat, lng: origin.lng },
         destination: { lat: destination.lat, lng: destination.lng },
         query: query.trim(),
-        maxResults: 10,
+        maxResults: MAX_DISPLAYED_RESULTS,
         useAI: useAI,
       });
 
@@ -190,7 +193,6 @@ function App() {
         setAllResults(response.results);
         setSelectedResultIndex(0);
 
-        // Save to history
         saveToHistory({
           origin: { lat: origin.lat, lng: origin.lng },
           destination: { lat: destination.lat, lng: destination.lng },
@@ -222,9 +224,24 @@ function App() {
     setSelectedResultIndex(index);
   }, []);
 
+  // Show more results (increment by 5)
   const handleShowMore = useCallback(() => {
-    setShowAll(true);
+    setDisplayCount((prev) =>
+      Math.min(prev + RESULTS_INCREMENT, MAX_DISPLAYED_RESULTS),
+    );
   }, []);
+
+  // Show less results (decrement by 5)
+  const handleShowLess = useCallback(() => {
+    setDisplayCount((prev) => {
+      const newCount = Math.max(prev - RESULTS_INCREMENT, RESULTS_INCREMENT);
+      // Adjust selected index if it's now out of bounds
+      if (selectedResultIndex >= newCount) {
+        setSelectedResultIndex(newCount - 1);
+      }
+      return newCount;
+    });
+  }, [selectedResultIndex]);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -290,10 +307,10 @@ function App() {
               results={displayedResults}
               selectedIndex={selectedResultIndex}
               onSelect={handleResultSelect}
-              onShowMore={
-                allResults && allResults.length > 5 ? handleShowMore : null
-              }
-              showingAll={showAll || (allResults && allResults.length <= 5)}
+              onShowMore={canShowMore ? handleShowMore : null}
+              onShowLess={canShowLess ? handleShowLess : null}
+              displayCount={displayCount}
+              totalResults={allResults?.length || 0}
             />
           )}
 
