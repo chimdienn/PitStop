@@ -7,9 +7,11 @@ import LoadingOverlay from "./components/LoadingOverlay";
 import { optimizeRoute } from "./services/api";
 
 const GOOGLE_MAPS_LIBRARIES = ["places"];
+const STORAGE_KEY = "pitstop_route_history";
+const MAX_HISTORY_ITEMS = 20;
 
 function App() {
-  // User location state (detected via IP)
+  // User location state
   const [userLocation, setUserLocation] = useState(null);
 
   // Form state
@@ -28,11 +30,92 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Route history state
+  const [routeHistory, setRouteHistory] = useState([]);
+
+  // Load route history from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setRouteHistory(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load route history:", e);
+    }
+  }, []);
+
+  // Save route history to localStorage
+  const saveToHistory = useCallback((searchData) => {
+    const newItem = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      origin: searchData.origin,
+      destination: searchData.destination,
+      originAddress: searchData.originAddress,
+      destinationAddress: searchData.destinationAddress,
+      query: searchData.query,
+      useAI: searchData.useAI,
+    };
+
+    setRouteHistory((prev) => {
+      const updated = [
+        newItem,
+        ...prev.filter(
+          (item) =>
+            !(
+              item.originAddress === newItem.originAddress &&
+              item.destinationAddress === newItem.destinationAddress &&
+              item.query === newItem.query
+            ),
+        ),
+      ].slice(0, MAX_HISTORY_ITEMS);
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to save route history:", e);
+      }
+
+      return updated;
+    });
+  }, []);
+
+  // Load a history item
+  const handleLoadHistory = useCallback((item) => {
+    setOrigin({ ...item.origin, address: item.originAddress });
+    setDestination({ ...item.destination, address: item.destinationAddress });
+    setQuery(item.query);
+    setUseAI(item.useAI || false);
+  }, []);
+
+  // Delete a history item
+  const handleDeleteHistory = useCallback((id) => {
+    setRouteHistory((prev) => {
+      const updated = prev.filter((item) => item.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to save route history:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  // Clear all history
+  const handleClearAllHistory = useCallback(() => {
+    setRouteHistory([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      console.error("Failed to clear route history:", e);
+    }
+  }, []);
+
   // Detect user location via IP on mount
   useEffect(() => {
     const detectUserLocation = async () => {
       try {
-        // Try multiple IP geolocation services
         const services = [
           "https://ipapi.co/json/",
           "https://ip-api.com/json/?fields=lat,lon",
@@ -48,7 +131,6 @@ function App() {
 
               if (lat && lng) {
                 setUserLocation({ lat, lng });
-                console.log("User location detected:", { lat, lng });
                 return;
               }
             }
@@ -57,7 +139,6 @@ function App() {
           }
         }
 
-        // Fallback: try browser geolocation
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -66,10 +147,7 @@ function App() {
                 lng: position.coords.longitude,
               });
             },
-            () => {
-              // Silent fail - will use default location
-              console.log("Geolocation not available, using default location");
-            },
+            () => {},
             { timeout: 5000, maximumAge: 300000 },
           );
         }
@@ -81,14 +159,12 @@ function App() {
     detectUserLocation();
   }, []);
 
-  // Get displayed results (5 or 10)
   const displayedResults = allResults
     ? showAll
       ? allResults
       : allResults.slice(0, 5)
     : null;
 
-  // Handle form submission
   const handleSearch = useCallback(async () => {
     if (!origin || !destination || !query.trim()) {
       setError("Please fill in all fields");
@@ -114,6 +190,16 @@ function App() {
         setAllResults(response.results);
         setSelectedResultIndex(0);
 
+        // Save to history
+        saveToHistory({
+          origin: { lat: origin.lat, lng: origin.lng },
+          destination: { lat: destination.lat, lng: destination.lng },
+          originAddress: origin.address,
+          destinationAddress: destination.address,
+          query: query.trim(),
+          useAI,
+        });
+
         if (response.results.length === 0) {
           setError(response.message || "No results found along this route");
         }
@@ -126,30 +212,18 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [origin, destination, query, useAI]);
+  }, [origin, destination, query, useAI, saveToHistory]);
 
-  // Handle quick chip selection
   const handleChipSelect = useCallback((chipQuery) => {
     setQuery(chipQuery);
   }, []);
 
-  // Handle result selection
   const handleResultSelect = useCallback((index) => {
     setSelectedResultIndex(index);
   }, []);
 
-  // Handle show more
   const handleShowMore = useCallback(() => {
     setShowAll(true);
-  }, []);
-
-  // Clear results
-  const handleClear = useCallback(() => {
-    setAllResults(null);
-    setPrimaryRoute(null);
-    setSelectedResultIndex(0);
-    setShowAll(false);
-    setError(null);
   }, []);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -180,7 +254,6 @@ function App() {
   return (
     <LoadScript googleMapsApiKey={apiKey} libraries={GOOGLE_MAPS_LIBRARIES}>
       <div className="h-screen w-screen flex overflow-hidden bg-dark-900">
-        {/* Sidebar */}
         <Sidebar
           origin={origin}
           setOrigin={setOrigin}
@@ -192,14 +265,15 @@ function App() {
           setUseAI={setUseAI}
           onSearch={handleSearch}
           onChipSelect={handleChipSelect}
-          onClear={handleClear}
           isLoading={isLoading}
-          hasResults={allResults !== null}
           error={error}
           userLocation={userLocation}
+          routeHistory={routeHistory}
+          onLoadHistory={handleLoadHistory}
+          onDeleteHistory={handleDeleteHistory}
+          onClearAllHistory={handleClearAllHistory}
         />
 
-        {/* Map Container */}
         <div className="flex-1 relative">
           <MapContainer
             origin={origin}
@@ -211,7 +285,6 @@ function App() {
             userLocation={userLocation}
           />
 
-          {/* Results Carousel */}
           {displayedResults && displayedResults.length > 0 && (
             <ResultsCarousel
               results={displayedResults}
@@ -224,7 +297,6 @@ function App() {
             />
           )}
 
-          {/* Loading Overlay */}
           {isLoading && <LoadingOverlay />}
         </div>
       </div>
