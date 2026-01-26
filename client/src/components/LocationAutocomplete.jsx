@@ -292,8 +292,8 @@ function LocationAutocomplete({
         <div
           ref={dropdownRef}
           className="absolute top-full left-0 right-0 mt-2 z-50 
-                     bg-dark-800/95 backdrop-blur-xl border border-glass-border 
-                     rounded-xl shadow-glass overflow-hidden"
+           bg-[#111118] border border-glass-border 
+           rounded-xl shadow-2xl overflow-hidden"
         >
           {isLoading ? (
             <div className="p-4 flex items-center justify-center gap-2 text-gray-400">
@@ -340,7 +340,7 @@ function LocationAutocomplete({
           )}
 
           {/* Powered by Google */}
-          <div className="px-4 py-2 border-t border-glass-border bg-dark-900/50">
+          <div className="px-4 py-2 border-t border-glass-border bg-[#0a0a0f]">
             <p className="text-xs text-gray-600 text-right">
               Powered by Google
             </p>

@@ -205,7 +205,7 @@ function Sidebar({
       {/* Footer */}
       <div className="p-4 border-t border-glass-border">
         <p className="text-xs text-gray-600 text-center">
-          Powered by Google Maps & AI
+          Powered by Google Maps & Gemini AI
         </p>
       </div>
     </aside>
