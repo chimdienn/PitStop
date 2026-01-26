@@ -149,7 +149,7 @@ function Sidebar({
           </div>
           <input
             type="range"
-            min="5"
+            min="2"
             max="30"
             step="1"
             value={maxDetour}
@@ -157,7 +157,7 @@ function Sidebar({
             className="w-full accent-accent"
           />
           <div className="flex justify-between text-xs text-gray-500">
-            <span>5 min</span>
+            <span>2 min</span>
             <span>30 min</span>
           </div>
         </div>
