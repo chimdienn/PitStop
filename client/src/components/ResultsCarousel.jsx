@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Star,
   Clock,
@@ -9,6 +8,7 @@ import {
   XCircle,
   Timer,
   ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 
 function ResultsCarousel({
@@ -16,13 +16,29 @@ function ResultsCarousel({
   selectedIndex,
   onSelect,
   onShowMore,
-  showingAll,
+  onShowLess,
+  displayCount,
+  totalResults,
 }) {
   if (!results || results.length === 0) return null;
 
   return (
     <div className="absolute bottom-6 left-0 right-0 px-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        {/* Less button */}
+        {onShowLess && (
+          <button
+            onClick={onShowLess}
+            className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-3 
+                       rounded-xl bg-dark-700/90 border border-glass-border 
+                       hover:bg-accent/20 hover:border-accent/50 transition-all duration-200"
+            title="Show less"
+          >
+            <ChevronLeft className="w-5 h-5 text-accent-light" />
+            <span className="text-xs text-gray-400">Less</span>
+          </button>
+        )}
+
         {/* Scrollable cards container */}
         <div className="flex-1 overflow-x-auto pb-2 scrollbar-hide">
           <div className="flex gap-3 w-max">
@@ -38,20 +54,26 @@ function ResultsCarousel({
           </div>
         </div>
 
-        {/* Show More button */}
-        {!showingAll && onShowMore && (
+        {/* More button */}
+        {onShowMore && (
           <button
             onClick={onShowMore}
-            className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-4 py-3 
-                       rounded-xl bg-dark-700/80 border border-glass-border 
+            className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-3 
+                       rounded-xl bg-dark-700/90 border border-glass-border 
                        hover:bg-accent/20 hover:border-accent/50 transition-all duration-200"
+            title="Show more"
           >
             <ChevronRight className="w-5 h-5 text-accent-light" />
-            <span className="text-xs text-gray-400 whitespace-nowrap">
-              More
-            </span>
+            <span className="text-xs text-gray-400">More</span>
           </button>
         )}
+      </div>
+
+      {/* Results count indicator */}
+      <div className="text-center mt-2">
+        <span className="text-xs text-gray-500">
+          Showing {results.length} of {totalResults} results
+        </span>
       </div>
     </div>
   );
@@ -63,7 +85,6 @@ function ResultCard({ result, index, isSelected, onClick }) {
     window.open(result.googleMapsUrl, "_blank", "noopener,noreferrer");
   };
 
-  // Calculate total travel time in minutes
   const totalTravelMinutes = Math.round(
     result.detourRoute.durationSeconds / 60,
   );
@@ -72,7 +93,6 @@ function ResultCard({ result, index, isSelected, onClick }) {
   const totalTimeDisplay =
     hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
 
-  // Ensure detour is always positive for display
   const detourMinutes = Math.max(0, result.detour.minutes);
   const detourDisplay = `+${detourMinutes} min`;
 
@@ -81,7 +101,7 @@ function ResultCard({ result, index, isSelected, onClick }) {
       onClick={onClick}
       className={`
         glass-card cursor-pointer flex-shrink-0
-        w-64 p-4 space-y-2.5
+        w-56 p-3 space-y-2
         transition-all duration-300 ease-out
         ${
           isSelected
@@ -92,7 +112,7 @@ function ResultCard({ result, index, isSelected, onClick }) {
     >
       {/* Header */}
       <div className="flex items-center gap-2">
-        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/30 text-accent-light text-sm font-bold flex items-center justify-center">
+        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-accent/30 text-accent-light text-xs font-bold flex items-center justify-center">
           {index + 1}
         </span>
         <h3 className="font-semibold text-white truncate text-sm">
@@ -102,25 +122,24 @@ function ResultCard({ result, index, isSelected, onClick }) {
 
       {/* Time Info */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Clock className="w-4 h-4 text-accent-light" />
-          <span className="text-lg font-bold text-accent-light">
+        <div className="flex items-center gap-1">
+          <Clock className="w-3.5 h-3.5 text-accent-light" />
+          <span className="text-base font-bold text-accent-light">
             {detourDisplay}
           </span>
         </div>
         <div className="flex items-center gap-1 text-gray-400 text-xs">
-          <Timer className="w-3.5 h-3.5" />
-          <span>Total: {totalTimeDisplay}</span>
+          <Timer className="w-3 h-3" />
+          <span>{totalTimeDisplay}</span>
         </div>
       </div>
 
       {/* Rating & Status */}
-      <div className="flex items-center gap-3 text-xs">
+      <div className="flex items-center gap-2 text-xs">
         {result.rating && (
           <div className="flex items-center gap-1">
-            <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
             <span className="text-white font-medium">{result.rating}</span>
-            <span className="text-gray-500">({result.userRatingCount})</span>
           </div>
         )}
 
@@ -130,12 +149,12 @@ function ResultCard({ result, index, isSelected, onClick }) {
           >
             {result.isOpen ? (
               <>
-                <CheckCircle className="w-3.5 h-3.5" />
+                <CheckCircle className="w-3 h-3" />
                 <span>Open</span>
               </>
             ) : (
               <>
-                <XCircle className="w-3.5 h-3.5" />
+                <XCircle className="w-3 h-3" />
                 <span>Closed</span>
               </>
             )}
@@ -144,31 +163,28 @@ function ResultCard({ result, index, isSelected, onClick }) {
       </div>
 
       {/* AI Analysis - compact */}
-      {/* {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
-        <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-accent/10 border border-accent/20">
-          <Sparkles className="w-3.5 h-3.5 text-accent-light flex-shrink-0" />
-          <span className="text-xs text-accent-light font-medium">
+      {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
+        <div className="flex items-center gap-1 text-xs">
+          <Sparkles className="w-3 h-3 text-accent-light" />
+          <span className="text-accent-light font-medium">
             AI: {Math.round(result.aiAnalysis.confidence * 100)}%
           </span>
         </div>
-      )} */}
+      )}
 
       {/* Address */}
-      <div className="flex items-start gap-1.5 text-xs text-gray-400">
-        <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-        <span className="line-clamp-1">{result.address}</span>
-      </div>
+      <div className="text-xs text-gray-400 truncate">{result.address}</div>
 
       {/* Open in Google Maps Button */}
       <button
         onClick={handleOpenMaps}
-        className="w-full py-2 px-3 rounded-lg bg-accent hover:bg-accent-light 
+        className="w-full py-1.5 px-2 rounded-lg bg-accent hover:bg-accent-light 
                    text-white font-medium text-xs
-                   flex items-center justify-center gap-1.5
+                   flex items-center justify-center gap-1
                    transition-all duration-200"
       >
-        <ExternalLink className="w-3.5 h-3.5" />
-        Open in Google Maps
+        <ExternalLink className="w-3 h-3" />
+        Google Maps
       </button>
     </div>
   );
