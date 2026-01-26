@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   MapPin,
   Navigation,
@@ -6,8 +6,10 @@ import {
   Fuel,
   Coffee,
   Banknote,
-  RotateCcw,
   Sparkles,
+  History,
+  Trash2,
+  X,
 } from "lucide-react";
 import LocationAutocomplete from "./LocationAutocomplete";
 
@@ -28,12 +30,16 @@ function Sidebar({
   setUseAI,
   onSearch,
   onChipSelect,
-  onClear,
   isLoading,
-  hasResults,
   error,
   userLocation,
+  routeHistory,
+  onLoadHistory,
+  onDeleteHistory,
+  onClearAllHistory,
 }) {
+  const [showHistory, setShowHistory] = useState(false);
+
   const handleSubmit = useCallback(
     (e) => {
       e.preventDefault();
@@ -58,20 +64,92 @@ function Sidebar({
     [onSearch, isLoading],
   );
 
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    return (
+      date.toLocaleDateString() +
+      " " +
+      date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    );
+  };
+
   return (
     <aside className="w-96 h-full flex flex-col bg-dark-800/80 backdrop-blur-xl border-r border-glass-border">
       {/* Header */}
       <div className="p-6 border-b border-glass-border">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-            <Navigation className="w-5 h-5 text-accent-light" />
-          </div>
-          Pit Stop
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+              <Navigation className="w-5 h-5 text-accent-light" />
+            </div>
+            Pit Stop
+          </h1>
+          {routeHistory && routeHistory.length > 0 && (
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className={`p-2 rounded-lg transition-colors ${
+                showHistory
+                  ? "bg-accent/20 text-accent-light"
+                  : "hover:bg-dark-600 text-gray-400"
+              }`}
+              title="Route History"
+            >
+              <History className="w-5 h-5" />
+            </button>
+          )}
+        </div>
         <p className="text-gray-500 text-sm mt-1">
           Find the best stops along your route
         </p>
       </div>
+
+      {/* History Panel */}
+      {showHistory && routeHistory && routeHistory.length > 0 && (
+        <div className="border-b border-glass-border bg-dark-900/50 max-h-64 overflow-y-auto">
+          <div className="p-3 flex items-center justify-between border-b border-glass-border">
+            <span className="text-sm font-medium text-gray-400">
+              Recent Searches
+            </span>
+            <button
+              onClick={onClearAllHistory}
+              className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+            >
+              <Trash2 className="w-3 h-3" />
+              Clear All
+            </button>
+          </div>
+          <div className="p-2 space-y-1">
+            {routeHistory.map((item, index) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-dark-700/50 group"
+              >
+                <button
+                  onClick={() => {
+                    onLoadHistory(item);
+                    setShowHistory(false);
+                  }}
+                  className="flex-1 text-left"
+                >
+                  <p className="text-sm text-white truncate">{item.query}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {item.originAddress} → {item.destinationAddress}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {formatDate(item.timestamp)}
+                  </p>
+                </button>
+                <button
+                  onClick={() => onDeleteHistory(item.id)}
+                  className="p-1 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Form */}
       <form
@@ -167,8 +245,8 @@ function Sidebar({
           </div>
         )}
 
-        {/* Buttons */}
-        <div className="space-y-3 pt-4">
+        {/* Search Button */}
+        <div className="pt-4">
           <button
             type="submit"
             disabled={isLoading || !origin || !destination || !query.trim()}
@@ -186,19 +264,6 @@ function Sidebar({
               </>
             )}
           </button>
-
-          {hasResults && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="w-full py-3 rounded-xl border border-glass-border text-gray-400 
-                         hover:text-white hover:bg-glass-light transition-all duration-200
-                         flex items-center justify-center gap-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              New Search
-            </button>
-          )}
         </div>
       </form>
 
