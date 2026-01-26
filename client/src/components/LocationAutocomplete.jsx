@@ -1,11 +1,33 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Autocomplete } from "@react-google-maps/api";
-import { MapPin, Crosshair, X } from "lucide-react";
+import { Crosshair, X, MapPin, Building2, Map, Navigation } from "lucide-react";
 
-function LocationAutocomplete({ value, onChange, placeholder, onKeyPress }) {
+function LocationAutocomplete({
+  value,
+  onChange,
+  placeholder,
+  onKeyPress,
+  userLocation,
+}) {
   const [inputValue, setInputValue] = useState("");
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const autocompleteRef = useRef(null);
+  const [predictions, setPredictions] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const autocompleteService = useRef(null);
+  const placesService = useRef(null);
+  const sessionToken = useRef(null);
+
+  // Initialize services
+  useEffect(() => {
+    if (window.google && !autocompleteService.current) {
+      autocompleteService.current =
+        new window.google.maps.places.AutocompleteService();
+      sessionToken.current =
+        new window.google.maps.places.AutocompleteSessionToken();
+    }
+  }, []);
 
   // Update input display when value changes
   useEffect(() => {
@@ -16,41 +38,141 @@ function LocationAutocomplete({ value, onChange, placeholder, onKeyPress }) {
     }
   }, [value]);
 
-  const handleLoad = useCallback((autocomplete) => {
-    autocompleteRef.current = autocomplete;
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        !inputRef.current.contains(event.target)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handlePlaceChanged = useCallback(() => {
-    if (autocompleteRef.current) {
-      const place = autocompleteRef.current.getPlace();
-
-      if (place.geometry?.location) {
-        onChange({
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-          address: place.formatted_address || place.name,
-          placeId: place.place_id,
-        });
-        setInputValue(place.formatted_address || place.name);
+  // Fetch predictions
+  const fetchPredictions = useCallback(
+    async (input) => {
+      if (!input || input.length < 2 || !autocompleteService.current) {
+        setPredictions([]);
+        return;
       }
-    }
-  }, [onChange]);
+
+      setIsLoading(true);
+
+      const request = {
+        input,
+        sessionToken: sessionToken.current,
+        types: ["geocode", "establishment"],
+      };
+
+      // Add location bias if user location is available
+      if (userLocation) {
+        request.locationBias = {
+          center: userLocation,
+          radius: 50000, // 50km radius
+        };
+      }
+
+      try {
+        autocompleteService.current.getPlacePredictions(
+          request,
+          (results, status) => {
+            setIsLoading(false);
+            if (
+              status === window.google.maps.places.PlacesServiceStatus.OK &&
+              results
+            ) {
+              setPredictions(results.slice(0, 5));
+              setShowDropdown(true);
+            } else {
+              setPredictions([]);
+            }
+          },
+        );
+      } catch (error) {
+        setIsLoading(false);
+        setPredictions([]);
+      }
+    },
+    [userLocation],
+  );
+
+  // Debounced input change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputValue && !value) {
+        fetchPredictions(inputValue);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [inputValue, value, fetchPredictions]);
 
   const handleInputChange = useCallback(
     (e) => {
-      setInputValue(e.target.value);
-      // Clear the selected location if user starts typing again
+      const newValue = e.target.value;
+      setInputValue(newValue);
       if (value) {
         onChange(null);
+      }
+      if (!newValue) {
+        setPredictions([]);
+        setShowDropdown(false);
       }
     },
     [value, onChange],
   );
 
+  const handleSelectPrediction = useCallback(
+    (prediction) => {
+      // Initialize places service if not already
+      if (!placesService.current) {
+        const mapDiv = document.createElement("div");
+        placesService.current = new window.google.maps.places.PlacesService(
+          mapDiv,
+        );
+      }
+
+      placesService.current.getDetails(
+        {
+          placeId: prediction.place_id,
+          fields: ["geometry", "formatted_address", "name"],
+          sessionToken: sessionToken.current,
+        },
+        (place, status) => {
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            place
+          ) {
+            onChange({
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng(),
+              address: place.formatted_address || place.name,
+              placeId: prediction.place_id,
+            });
+            setInputValue(place.formatted_address || place.name);
+            setPredictions([]);
+            setShowDropdown(false);
+            // Create new session token for next search
+            sessionToken.current =
+              new window.google.maps.places.AutocompleteSessionToken();
+          }
+        },
+      );
+    },
+    [onChange],
+  );
+
   const handleClear = useCallback(() => {
     setInputValue("");
     onChange(null);
-    autocompleteRef.current = null;
+    setPredictions([]);
+    setShowDropdown(false);
   }, [onChange]);
 
   const handleUseCurrentLocation = useCallback(() => {
@@ -65,7 +187,6 @@ function LocationAutocomplete({ value, onChange, placeholder, onKeyPress }) {
       (position) => {
         const { latitude, longitude } = position.coords;
 
-        // Reverse geocode to get address
         const geocoder = new window.google.maps.Geocoder();
         geocoder.geocode(
           { location: { lat: latitude, lng: longitude } },
@@ -88,6 +209,7 @@ function LocationAutocomplete({ value, onChange, placeholder, onKeyPress }) {
               setInputValue("Current Location");
             }
             setIsLoadingLocation(false);
+            setShowDropdown(false);
           },
         );
       },
@@ -104,56 +226,127 @@ function LocationAutocomplete({ value, onChange, placeholder, onKeyPress }) {
     );
   }, [onChange]);
 
+  const handleFocus = useCallback(() => {
+    if (predictions.length > 0) {
+      setShowDropdown(true);
+    }
+  }, [predictions]);
+
+  // Get icon for prediction type
+  const getPredictionIcon = (types) => {
+    if (types?.includes("establishment")) return Building2;
+    if (types?.includes("route")) return Navigation;
+    if (
+      types?.includes("locality") ||
+      types?.includes("administrative_area_level_1")
+    )
+      return Map;
+    return MapPin;
+  };
+
   return (
     <div className="relative">
-      <Autocomplete
-        onLoad={handleLoad}
-        onPlaceChanged={handlePlaceChanged}
-        options={{
-          fields: ["place_id", "geometry", "formatted_address", "name"],
-          types: ["geocode", "establishment"],
-        }}
-      >
-        <div className="relative">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyPress={onKeyPress}
-            placeholder={placeholder}
-            className="glass-input w-full pr-20"
-          />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onKeyPress={onKeyPress}
+          onFocus={handleFocus}
+          placeholder={placeholder}
+          className="glass-input w-full pr-20"
+          autoComplete="off"
+        />
 
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {/* Clear button */}
-            {inputValue && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="p-1.5 rounded-lg hover:bg-dark-600 text-gray-500 hover:text-gray-300 transition-colors"
-                title="Clear"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Current location button */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {inputValue && (
             <button
               type="button"
-              onClick={handleUseCurrentLocation}
-              disabled={isLoadingLocation}
-              className="p-1.5 rounded-lg hover:bg-dark-600 text-gray-500 hover:text-accent-light transition-colors disabled:opacity-50"
-              title="Use current location"
+              onClick={handleClear}
+              className="p-1.5 rounded-lg hover:bg-dark-600 text-gray-500 hover:text-gray-300 transition-colors"
+              title="Clear"
             >
-              {isLoadingLocation ? (
-                <div className="w-4 h-4 border-2 border-gray-500 border-t-accent-light rounded-full animate-spin" />
-              ) : (
-                <Crosshair className="w-4 h-4" />
-              )}
+              <X className="w-4 h-4" />
             </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={isLoadingLocation}
+            className="p-1.5 rounded-lg hover:bg-dark-600 text-gray-500 hover:text-accent-light transition-colors disabled:opacity-50"
+            title="Use current location"
+          >
+            {isLoadingLocation ? (
+              <div className="w-4 h-4 border-2 border-gray-500 border-t-accent-light rounded-full animate-spin" />
+            ) : (
+              <Crosshair className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Custom Dropdown */}
+      {showDropdown && (predictions.length > 0 || isLoading) && (
+        <div
+          ref={dropdownRef}
+          className="absolute top-full left-0 right-0 mt-2 z-50 
+                     bg-dark-800/95 backdrop-blur-xl border border-glass-border 
+                     rounded-xl shadow-glass overflow-hidden"
+        >
+          {isLoading ? (
+            <div className="p-4 flex items-center justify-center gap-2 text-gray-400">
+              <div className="w-4 h-4 border-2 border-gray-500 border-t-accent-light rounded-full animate-spin" />
+              <span className="text-sm">Searching...</span>
+            </div>
+          ) : (
+            <ul className="py-1">
+              {predictions.map((prediction, index) => {
+                const Icon = getPredictionIcon(prediction.types);
+                const mainText =
+                  prediction.structured_formatting?.main_text ||
+                  prediction.description;
+                const secondaryText =
+                  prediction.structured_formatting?.secondary_text || "";
+
+                return (
+                  <li key={prediction.place_id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPrediction(prediction)}
+                      className={`w-full px-4 py-3 flex items-start gap-3 text-left
+                                  hover:bg-accent/10 transition-colors duration-150
+                                  ${index !== predictions.length - 1 ? "border-b border-glass-border" : ""}`}
+                    >
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-dark-600 flex items-center justify-center mt-0.5">
+                        <Icon className="w-4 h-4 text-accent-light" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">
+                          {mainText}
+                        </p>
+                        {secondaryText && (
+                          <p className="text-xs text-gray-500 truncate mt-0.5">
+                            {secondaryText}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {/* Powered by Google */}
+          <div className="px-4 py-2 border-t border-glass-border bg-dark-900/50">
+            <p className="text-xs text-gray-600 text-right">
+              Powered by Google
+            </p>
           </div>
         </div>
-      </Autocomplete>
+      )}
 
       {/* Location indicator */}
       {value && (
