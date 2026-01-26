@@ -12,6 +12,7 @@ const API_BASE = import.meta.env.VITE_API_URL || "";
  * @param {Object} params.destination - { lat, lng }
  * @param {string} params.query - Search query
  * @param {number} params.maxDetourMinutes - Maximum detour tolerance
+ * @param {boolean} params.useAI - Whether to use AI analysis
  * @returns {Promise<Object>} Optimization results
  */
 export async function optimizeRoute({
@@ -19,6 +20,7 @@ export async function optimizeRoute({
   destination,
   query,
   maxDetourMinutes,
+  useAI,
 }) {
   const response = await fetch(`${API_BASE}/api/optimize`, {
     method: "POST",
@@ -30,6 +32,7 @@ export async function optimizeRoute({
       destination,
       query,
       maxDetourMinutes,
+      useAI,
     }),
   });
 
