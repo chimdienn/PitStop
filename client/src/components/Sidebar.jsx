@@ -24,8 +24,6 @@ function Sidebar({
   setDestination,
   query,
   setQuery,
-  maxDetour,
-  setMaxDetour,
   useAI,
   setUseAI,
   onSearch,
@@ -118,7 +116,7 @@ function Sidebar({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="e.g., Starbucks, gas station with clean toilets..."
+            placeholder="e.g., Starbucks, gas station, toilet..."
             className="glass-input w-full"
           />
         </div>
@@ -140,31 +138,6 @@ function Sidebar({
           ))}
         </div>
 
-        {/* Max Detour Slider */}
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <label className="text-sm font-medium text-gray-400">
-              Max Detour
-            </label>
-            <span className="text-accent-light font-semibold">
-              {maxDetour} min
-            </span>
-          </div>
-          <input
-            type="range"
-            min="5"
-            max="30"
-            step="1"
-            value={maxDetour}
-            onChange={(e) => setMaxDetour(parseInt(e.target.value))}
-            className="w-full accent-accent"
-          />
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>5 min</span>
-            <span>30 min</span>
-          </div>
-        </div>
-
         {/* AI Toggle */}
         <div className="flex items-center gap-3 p-3 rounded-xl bg-dark-700/50 border border-glass-border">
           <input
@@ -181,6 +154,7 @@ function Sidebar({
             <Sparkles className="w-4 h-4 text-accent-light" />
             <span className="text-sm text-gray-300">AI-powered search</span>
           </label>
+          <span className="text-xs text-gray-500">Analyzes reviews</span>
         </div>
 
         {/* Error Message */}
