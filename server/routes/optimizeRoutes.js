@@ -1,38 +1,19 @@
-/**
- * Route Optimization Routes
- * Core orchestration logic for finding optimal pit stops
- */
-
 import express from "express";
 import * as googleMapsService from "../services/googleMapsService.js";
 import * as geminiService from "../services/geminiService.js";
 
 const router = express.Router();
 
-/**
- * POST /api/optimize
- * Main endpoint for route optimization
- *
- * Request body:
- * {
- *   origin: { lat: number, lng: number } | string (address),
- *   destination: { lat: number, lng: number } | string (address),
- *   query: string (search criteria),
- *   maxDetourMinutes: number (5-30),
- *   useAI: boolean (whether to use AI analysis)
- * }
- */
 router.post("/optimize", async (req, res) => {
   try {
     const {
       origin,
       destination,
       query,
-      maxDetourMinutes = 15,
+      maxResults = 10,
       useAI = false,
     } = req.body;
 
-    // Validate inputs
     if (!origin || !destination || !query) {
       return res.status(400).json({
         error:
@@ -40,17 +21,15 @@ router.post("/optimize", async (req, res) => {
       });
     }
 
-    const detourTolerance = Math.max(5, Math.min(30, maxDetourMinutes));
-    const detourToleranceSeconds = detourTolerance * 60;
+    const resultCount = Math.max(1, Math.min(10, maxResults));
 
     console.log(`\n🔍 Optimization request:`);
     console.log(`   Origin: ${JSON.stringify(origin)}`);
     console.log(`   Destination: ${JSON.stringify(destination)}`);
     console.log(`   Query: "${query}"`);
-    console.log(`   Max detour: ${detourTolerance} minutes`);
+    console.log(`   Max results: ${resultCount}`);
     console.log(`   Use AI: ${useAI}`);
 
-    // Resolve addresses to coordinates if needed
     let originCoords = origin;
     let destinationCoords = destination;
 
@@ -84,7 +63,7 @@ router.post("/optimize", async (req, res) => {
     const places = await googleMapsService.searchPlacesAlongRoute(
       query,
       primaryRoute.encodedPolyline,
-      15, // Get more results for filtering
+      20, // Get more results for better selection
     );
     console.log(`   Found ${places.length} potential stops`);
 
@@ -101,7 +80,7 @@ router.post("/optimize", async (req, res) => {
       });
     }
 
-    // STEP 3: Calculate detour time for each place and filter
+    // STEP 3: Calculate detour time for each place
     console.log("\n⏱️  Step 3: Calculating detour times...");
     const placesWithDetour = await Promise.all(
       places.map(async (place) => {
@@ -111,7 +90,6 @@ router.post("/optimize", async (req, res) => {
             lng: place.location.longitude,
           };
 
-          // Get route with waypoint
           const detourRoute = await googleMapsService.computeRouteWithWaypoint(
             originCoords,
             location,
@@ -123,8 +101,8 @@ router.post("/optimize", async (req, res) => {
 
           return {
             place,
-            detourSeconds,
-            detourMinutes: Math.round(detourSeconds / 60),
+            detourSeconds: Math.max(0, detourSeconds), // Ensure non-negative
+            detourMinutes: Math.max(0, Math.round(detourSeconds / 60)),
             totalDurationSeconds: detourRoute.durationSeconds,
             detourRoute,
           };
@@ -138,15 +116,12 @@ router.post("/optimize", async (req, res) => {
       }),
     );
 
-    // Filter out failed calculations and places exceeding detour tolerance
+    // Filter out failed calculations and sort by detour time (ascending)
     const validPlaces = placesWithDetour
       .filter((p) => p !== null)
-      .filter((p) => p.detourSeconds <= detourToleranceSeconds)
       .sort((a, b) => a.detourSeconds - b.detourSeconds);
 
-    console.log(
-      `   ${validPlaces.length} places within ${detourTolerance} min detour`,
-    );
+    console.log(`   ${validPlaces.length} valid places calculated`);
 
     if (validPlaces.length === 0) {
       return res.json({
@@ -157,17 +132,16 @@ router.post("/optimize", async (req, res) => {
           encodedPolyline: primaryRoute.encodedPolyline,
         },
         results: [],
-        message: `No places found within your ${detourTolerance} minute detour tolerance. Try increasing the tolerance.`,
+        message: "Could not calculate routes to any places. Please try again.",
       });
     }
 
-    // STEP 4: AI Vibe Check (if useAI is enabled and Gemini is configured)
-    let rankedPlaces = validPlaces.slice(0, 5); // Top 5 for AI analysis
+    // STEP 4: AI analysis (if enabled)
+    let rankedPlaces = validPlaces.slice(0, resultCount);
 
     if (useAI && geminiService.isConfigured()) {
       console.log("\n🤖 Step 4: AI analysis enabled by user...");
 
-      // Get detailed reviews for top candidates
       const placesWithReviews = await Promise.all(
         rankedPlaces.map(async (item) => {
           try {
@@ -176,10 +150,7 @@ router.post("/optimize", async (req, res) => {
             );
             return {
               ...item,
-              place: {
-                ...item.place,
-                reviews: details.reviews || [],
-              },
+              place: { ...item.place, reviews: details.reviews || [] },
             };
           } catch (error) {
             return item;
@@ -187,29 +158,25 @@ router.post("/optimize", async (req, res) => {
         }),
       );
 
-      // Analyze reviews with Gemini
       const placesForAnalysis = placesWithReviews.map((p) => p.place);
       const analyzedPlaces = await geminiService.analyzeReviewsForCriteria(
         placesForAnalysis,
         query,
       );
 
-      // Merge analysis results back
       rankedPlaces = placesWithReviews.map((item, index) => ({
         ...item,
         place: analyzedPlaces[index],
       }));
 
-      // Re-sort by AI confidence (if available) then by detour time
+      // Sort by AI confidence first, then by detour time
       rankedPlaces.sort((a, b) => {
         const confA = a.place.aiConfidence ?? 0.5;
         const confB = b.place.aiConfidence ?? 0.5;
 
-        // Primary sort by confidence (higher is better)
         if (Math.abs(confA - confB) > 0.1) {
           return confB - confA;
         }
-        // Secondary sort by detour time (lower is better)
         return a.detourSeconds - b.detourSeconds;
       });
 
@@ -220,12 +187,11 @@ router.post("/optimize", async (req, res) => {
       console.log("\n⏭️  Step 4: AI analysis not requested");
     }
 
-    // STEP 5: Format and return top 3 results
+    // STEP 5: Format results
     console.log("\n✅ Step 5: Preparing results...");
-    const topResults = rankedPlaces.slice(0, 3).map((item, index) => {
+    const topResults = rankedPlaces.map((item, index) => {
       const place = item.place;
 
-      // Get photo URL if available
       let photoUrl = null;
       if (place.photos && place.photos.length > 0) {
         photoUrl = googleMapsService.getPhotoUrl(place.photos[0].name, 400);
@@ -249,7 +215,7 @@ router.post("/optimize", async (req, res) => {
         detour: {
           minutes: item.detourMinutes,
           seconds: item.detourSeconds,
-          addedText: `+${item.detourMinutes} min detour`,
+          addedText: `+${item.detourMinutes} min`,
         },
         detourRoute: {
           encodedPolyline: item.detourRoute.encodedPolyline,
@@ -283,11 +249,9 @@ router.post("/optimize", async (req, res) => {
       origin: originCoords,
       destination: destinationCoords,
       query,
-      maxDetourMinutes: detourTolerance,
       useAI,
       results: topResults,
       totalCandidatesFound: places.length,
-      candidatesWithinTolerance: validPlaces.length,
     });
   } catch (error) {
     console.error("❌ Optimization error:", error);
@@ -298,33 +262,20 @@ router.post("/optimize", async (req, res) => {
   }
 });
 
-/**
- * POST /api/geocode
- * Geocode an address to coordinates
- */
 router.post("/geocode", async (req, res) => {
   try {
     const { address } = req.body;
-
     if (!address) {
       return res.status(400).json({ error: "Address is required" });
     }
-
     const result = await googleMapsService.geocodeAddress(address);
     res.json(result);
   } catch (error) {
     console.error("Geocoding error:", error);
-    res.status(500).json({
-      error: "Geocoding failed",
-      message: error.message,
-    });
+    res.status(500).json({ error: "Geocoding failed", message: error.message });
   }
 });
 
-/**
- * GET /api/place/:placeId
- * Get detailed information about a specific place
- */
 router.get("/place/:placeId", async (req, res) => {
   try {
     const { placeId } = req.params;
@@ -332,16 +283,12 @@ router.get("/place/:placeId", async (req, res) => {
     res.json(details);
   } catch (error) {
     console.error("Place details error:", error);
-    res.status(500).json({
-      error: "Failed to fetch place details",
-      message: error.message,
-    });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch place details", message: error.message });
   }
 });
 
-/**
- * Generate Google Maps deep link for navigation
- */
 function generateGoogleMapsUrl(origin, place, destination) {
   const originStr = `${origin.lat},${origin.lng}`;
   const waypointLat = place.location?.latitude || place.location?.lat;
