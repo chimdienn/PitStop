@@ -1,68 +1,82 @@
-/**
- * Gemini AI Service
- * Handles semantic analysis of place reviews for complex queries
- */
-
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-let genAI = null;
+// Configuration for API keys and models
+const API_KEYS = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_2,
+].filter(Boolean);
 
-/**
- * Initialize the Gemini client
- */
-function getClient() {
-  if (!genAI && process.env.GEMINI_API_KEY) {
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  }
-  return genAI;
+const MODELS = [
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+];
+
+// Track failed combinations to avoid retrying
+const failedCombinations = new Map();
+const FAILURE_RESET_TIME = 60 * 60 * 1000; // 1 hour
+
+function getClient(apiKey) {
+  if (!apiKey) return null;
+  return new GoogleGenerativeAI(apiKey);
 }
 
-/**
- * Check if Gemini is configured
- */
 export function isConfigured() {
-  return !!process.env.GEMINI_API_KEY;
+  return API_KEYS.length > 0;
 }
 
-/**
- * Analyze reviews to determine if a place matches complex criteria
- * @param {Array} places - Array of place objects with reviews
- * @param {string} criteria - User's search criteria (e.g., "clean toilets", "good coffee")
- * @returns {Array} Places with confidence scores
- */
-export async function analyzeReviewsForCriteria(places, criteria) {
-  const client = getClient();
+function isQuotaError(error) {
+  const errorMessage = error?.message?.toLowerCase() || "";
+  return (
+    errorMessage.includes("quota") ||
+    errorMessage.includes("rate limit") ||
+    errorMessage.includes("resource exhausted") ||
+    errorMessage.includes("429") ||
+    error?.status === 429
+  );
+}
 
-  if (!client) {
-    console.log("ℹ️  Gemini not configured - skipping AI analysis");
-    // Return places with neutral confidence if Gemini isn't available
-    return places.map((place) => ({
-      ...place,
-      aiConfidence: null,
-      aiAnalysis: "AI analysis not available",
-    }));
+function getCombinationKey(keyIndex, modelIndex) {
+  return `${keyIndex}-${modelIndex}`;
+}
+
+function isCombinationAvailable(keyIndex, modelIndex) {
+  const key = getCombinationKey(keyIndex, modelIndex);
+  const failedAt = failedCombinations.get(key);
+  if (!failedAt) return true;
+
+  // Reset after timeout
+  if (Date.now() - failedAt > FAILURE_RESET_TIME) {
+    failedCombinations.delete(key);
+    return true;
   }
+  return false;
+}
 
-  const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
+function markCombinationFailed(keyIndex, modelIndex) {
+  const key = getCombinationKey(keyIndex, modelIndex);
+  failedCombinations.set(key, Date.now());
+}
+
+async function tryAnalyzeWithModel(client, modelName, places, criteria) {
+  const model = client.getGenerativeModel({ model: modelName });
 
   const results = await Promise.all(
     places.map(async (place) => {
-      try {
-        // Extract review texts
-        const reviewTexts = (place.reviews || [])
-          .slice(0, 5) // Limit to 5 most recent reviews
-          .map((r) => r.text?.text || r.text || "")
-          .filter((text) => text.length > 0);
+      const reviewTexts = (place.reviews || [])
+        .slice(0, 5)
+        .map((r) => r.text?.text || r.text || "")
+        .filter((text) => text.length > 0);
 
-        if (reviewTexts.length === 0) {
-          return {
-            ...place,
-            aiConfidence: 0.5,
-            aiAnalysis: "No reviews available for analysis",
-          };
-        }
+      if (reviewTexts.length === 0) {
+        return {
+          ...place,
+          aiConfidence: 0.5,
+          aiAnalysis: "No reviews available for analysis",
+        };
+      }
 
-        const prompt = `You are analyzing customer reviews for a place to determine if it matches specific criteria.
+      const prompt = `You are analyzing customer reviews for a place to determine if it matches specific criteria.
 
 Criteria to evaluate: "${criteria}"
 
@@ -79,82 +93,98 @@ Based on these reviews, provide:
 Respond ONLY in this exact JSON format:
 {"confidence": 0.X, "explanation": "Brief explanation"}`;
 
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
 
-        // Parse JSON response
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          return {
-            ...place,
-            aiConfidence: Math.max(0, Math.min(1, parsed.confidence)),
-            aiAnalysis: parsed.explanation,
-          };
-        }
-
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
         return {
           ...place,
-          aiConfidence: 0.5,
-          aiAnalysis: "Unable to parse AI response",
-        };
-      } catch (error) {
-        console.error(
-          `AI analysis error for ${place.displayName?.text}:`,
-          error.message,
-        );
-        return {
-          ...place,
-          aiConfidence: 0.5,
-          aiAnalysis: "AI analysis failed",
+          aiConfidence: Math.max(0, Math.min(1, parsed.confidence)),
+          aiAnalysis: parsed.explanation,
         };
       }
+
+      return {
+        ...place,
+        aiConfidence: 0.5,
+        aiAnalysis: "Unable to parse AI response",
+      };
     }),
   );
 
   return results;
 }
 
-/**
- * Determine if a search query is complex enough to warrant AI analysis
- * @param {string} query - User's search query
- * @returns {boolean} Whether AI analysis should be used
- */
-export function isComplexQuery(query) {
-  const complexIndicators = [
-    "clean",
-    "good",
-    "best",
-    "quality",
-    "quiet",
-    "fast",
-    "friendly",
-    "cheap",
-    "nice",
-    "safe",
-    "reliable",
-    "fresh",
-    "healthy",
-    "spacious",
-    "parking",
-    "wifi",
-    "outdoor",
-    "seating",
-    "drive-thru",
-    "drive thru",
-    "vegan",
-    "vegetarian",
-    "organic",
-    "local",
-    "authentic",
-  ];
+export async function analyzeReviewsForCriteria(places, criteria) {
+  if (!isConfigured()) {
+    console.log("ℹ️  Gemini not configured - skipping AI analysis");
+    return places.map((place) => ({
+      ...place,
+      aiConfidence: null,
+      aiAnalysis: "AI analysis not available",
+    }));
+  }
 
-  const lowerQuery = query.toLowerCase();
-  return complexIndicators.some((indicator) => lowerQuery.includes(indicator));
+  // Try each API key and model combination
+  for (let keyIndex = 0; keyIndex < API_KEYS.length; keyIndex++) {
+    const apiKey = API_KEYS[keyIndex];
+    const client = getClient(apiKey);
+
+    if (!client) continue;
+
+    for (let modelIndex = 0; modelIndex < MODELS.length; modelIndex++) {
+      const modelName = MODELS[modelIndex];
+
+      // Skip if this combination recently failed
+      if (!isCombinationAvailable(keyIndex, modelIndex)) {
+        console.log(
+          `⏭️  Skipping ${modelName} with key ${keyIndex + 1} (recently failed)`,
+        );
+        continue;
+      }
+
+      try {
+        console.log(`🤖 Trying ${modelName} with API key ${keyIndex + 1}...`);
+        const results = await tryAnalyzeWithModel(
+          client,
+          modelName,
+          places,
+          criteria,
+        );
+        console.log(`✅ Success with ${modelName}`);
+        return results;
+      } catch (error) {
+        console.error(
+          `❌ Error with ${modelName} (key ${keyIndex + 1}):`,
+          error.message,
+        );
+
+        if (isQuotaError(error)) {
+          console.log(
+            `⚠️  Quota reached for ${modelName} with key ${keyIndex + 1}, trying next...`,
+          );
+          markCombinationFailed(keyIndex, modelIndex);
+          continue;
+        }
+
+        // For non-quota errors, still try next combination
+        continue;
+      }
+    }
+  }
+
+  // All combinations exhausted
+  console.log("⚠️  All Gemini API keys and models exhausted");
+  return places.map((place) => ({
+    ...place,
+    aiConfidence: null,
+    aiAnalysis: "AI quota temporarily exhausted, try again later",
+  }));
 }
 
 export default {
   isConfigured,
   analyzeReviewsForCriteria,
-  isComplexQuery,
 };
