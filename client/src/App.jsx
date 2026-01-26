@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { LoadScript } from "@react-google-maps/api";
 import Sidebar from "./components/Sidebar";
 import MapContainer from "./components/MapContainer";
@@ -9,6 +9,9 @@ import { optimizeRoute } from "./services/api";
 const GOOGLE_MAPS_LIBRARIES = ["places"];
 
 function App() {
+  // User location state (detected via IP)
+  const [userLocation, setUserLocation] = useState(null);
+
   // Form state
   const [origin, setOrigin] = useState(null);
   const [destination, setDestination] = useState(null);
@@ -16,14 +19,67 @@ function App() {
   const [useAI, setUseAI] = useState(false);
 
   // Results state
-  const [allResults, setAllResults] = useState(null); // Store all 10 results
-  const [showAll, setShowAll] = useState(false); // Show 5 or 10
+  const [allResults, setAllResults] = useState(null);
+  const [showAll, setShowAll] = useState(false);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   const [primaryRoute, setPrimaryRoute] = useState(null);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Detect user location via IP on mount
+  useEffect(() => {
+    const detectUserLocation = async () => {
+      try {
+        // Try multiple IP geolocation services
+        const services = [
+          "https://ipapi.co/json/",
+          "https://ip-api.com/json/?fields=lat,lon",
+        ];
+
+        for (const url of services) {
+          try {
+            const response = await fetch(url);
+            if (response.ok) {
+              const data = await response.json();
+              const lat = data.latitude || data.lat;
+              const lng = data.longitude || data.lon;
+
+              if (lat && lng) {
+                setUserLocation({ lat, lng });
+                console.log("User location detected:", { lat, lng });
+                return;
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+
+        // Fallback: try browser geolocation
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setUserLocation({
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+              });
+            },
+            () => {
+              // Silent fail - will use default location
+              console.log("Geolocation not available, using default location");
+            },
+            { timeout: 5000, maximumAge: 300000 },
+          );
+        }
+      } catch (error) {
+        console.log("Could not detect user location:", error);
+      }
+    };
+
+    detectUserLocation();
+  }, []);
 
   // Get displayed results (5 or 10)
   const displayedResults = allResults
@@ -49,7 +105,7 @@ function App() {
         origin: { lat: origin.lat, lng: origin.lng },
         destination: { lat: destination.lat, lng: destination.lng },
         query: query.trim(),
-        maxResults: 10, // Always request 10
+        maxResults: 10,
         useAI: useAI,
       });
 
@@ -140,6 +196,7 @@ function App() {
           isLoading={isLoading}
           hasResults={allResults !== null}
           error={error}
+          userLocation={userLocation}
         />
 
         {/* Map Container */}
@@ -148,10 +205,10 @@ function App() {
             origin={origin}
             destination={destination}
             primaryRoute={primaryRoute}
-            selectedResult={displayedResults?.[selectedResultIndex] || null}
             results={displayedResults}
             selectedIndex={selectedResultIndex}
             onSelectResult={handleResultSelect}
+            userLocation={userLocation}
           />
 
           {/* Results Carousel */}
