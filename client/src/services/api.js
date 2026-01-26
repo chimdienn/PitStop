@@ -4,7 +4,7 @@ export async function optimizeRoute({
   origin,
   destination,
   query,
-  maxResults,
+  maxResults = 20,
   useAI,
 }) {
   const response = await fetch(`${API_BASE}/api/optimize`, {
