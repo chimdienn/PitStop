@@ -1,11 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Configuration for API keys and models
-const API_KEYS = [
-  process.env.GEMINI_API_KEY,
-  process.env.GEMINI_API_KEY_2,
-].filter(Boolean);
-
+// Models to try in order
 const MODELS = [
   "gemini-2.0-flash-lite",
   "gemini-2.0-flash",
@@ -16,13 +11,22 @@ const MODELS = [
 const failedCombinations = new Map();
 const FAILURE_RESET_TIME = 60 * 60 * 1000; // 1 hour
 
+// Lazy-load API keys (called after dotenv is configured)
+function getApiKeys() {
+  return [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(
+    Boolean,
+  );
+}
+
 function getClient(apiKey) {
   if (!apiKey) return null;
   return new GoogleGenerativeAI(apiKey);
 }
 
 export function isConfigured() {
-  return API_KEYS.length > 0;
+  const keys = getApiKeys();
+  console.log(`ℹ️  Gemini API keys configured: ${keys.length}`);
+  return keys.length > 0;
 }
 
 function isQuotaError(error) {
@@ -45,7 +49,6 @@ function isCombinationAvailable(keyIndex, modelIndex) {
   const failedAt = failedCombinations.get(key);
   if (!failedAt) return true;
 
-  // Reset after timeout
   if (Date.now() - failedAt > FAILURE_RESET_TIME) {
     failedCombinations.delete(key);
     return true;
@@ -118,7 +121,9 @@ Respond ONLY in this exact JSON format:
 }
 
 export async function analyzeReviewsForCriteria(places, criteria) {
-  if (!isConfigured()) {
+  const API_KEYS = getApiKeys();
+
+  if (API_KEYS.length === 0) {
     console.log("ℹ️  Gemini not configured - skipping AI analysis");
     return places.map((place) => ({
       ...place,
