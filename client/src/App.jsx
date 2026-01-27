@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { LoadScript } from "@react-google-maps/api";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import MapContainer from "./components/MapContainer";
 import ResultsCarousel from "./components/ResultsCarousel";
@@ -14,6 +15,7 @@ const MAX_DISPLAYED_RESULTS = 20;
 
 function App() {
   const [userLocation, setUserLocation] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Form state
   const [origin, setOrigin] = useState(null);
@@ -23,7 +25,7 @@ function App() {
 
   // Results state
   const [allResults, setAllResults] = useState(null);
-  const [displayCount, setDisplayCount] = useState(RESULTS_INCREMENT); // 5, 10, 15, 20
+  const [displayCount, setDisplayCount] = useState(RESULTS_INCREMENT);
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
   const [primaryRoute, setPrimaryRoute] = useState(null);
 
@@ -157,12 +159,10 @@ function App() {
     detectUserLocation();
   }, []);
 
-  // Get displayed results based on current display count
   const displayedResults = allResults
     ? allResults.slice(0, Math.min(displayCount, allResults.length))
     : null;
 
-  // Check if we can show more or less
   const canShowMore =
     allResults &&
     displayCount < Math.min(allResults.length, MAX_DISPLAYED_RESULTS);
@@ -224,24 +224,25 @@ function App() {
     setSelectedResultIndex(index);
   }, []);
 
-  // Show more results (increment by 5)
   const handleShowMore = useCallback(() => {
     setDisplayCount((prev) =>
       Math.min(prev + RESULTS_INCREMENT, MAX_DISPLAYED_RESULTS),
     );
   }, []);
 
-  // Show less results (decrement by 5)
   const handleShowLess = useCallback(() => {
     setDisplayCount((prev) => {
       const newCount = Math.max(prev - RESULTS_INCREMENT, RESULTS_INCREMENT);
-      // Adjust selected index if it's now out of bounds
       if (selectedResultIndex >= newCount) {
         setSelectedResultIndex(newCount - 1);
       }
       return newCount;
     });
   }, [selectedResultIndex]);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => !prev);
+  }, []);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -271,26 +272,52 @@ function App() {
   return (
     <LoadScript googleMapsApiKey={apiKey} libraries={GOOGLE_MAPS_LIBRARIES}>
       <div className="h-screen w-screen flex overflow-hidden bg-dark-900">
-        <Sidebar
-          origin={origin}
-          setOrigin={setOrigin}
-          destination={destination}
-          setDestination={setDestination}
-          query={query}
-          setQuery={setQuery}
-          useAI={useAI}
-          setUseAI={setUseAI}
-          onSearch={handleSearch}
-          onChipSelect={handleChipSelect}
-          isLoading={isLoading}
-          error={error}
-          userLocation={userLocation}
-          routeHistory={routeHistory}
-          onLoadHistory={handleLoadHistory}
-          onDeleteHistory={handleDeleteHistory}
-          onClearAllHistory={handleClearAllHistory}
-        />
+        {/* Sidebar with animation */}
+        <div
+          className={`h-full transition-all duration-300 ease-in-out ${
+            sidebarOpen ? "w-96" : "w-0"
+          } overflow-hidden`}
+        >
+          <Sidebar
+            origin={origin}
+            setOrigin={setOrigin}
+            destination={destination}
+            setDestination={setDestination}
+            query={query}
+            setQuery={setQuery}
+            useAI={useAI}
+            setUseAI={setUseAI}
+            onSearch={handleSearch}
+            onChipSelect={handleChipSelect}
+            isLoading={isLoading}
+            error={error}
+            userLocation={userLocation}
+            routeHistory={routeHistory}
+            onLoadHistory={handleLoadHistory}
+            onDeleteHistory={handleDeleteHistory}
+            onClearAllHistory={handleClearAllHistory}
+          />
+        </div>
 
+        {/* Toggle Button */}
+        <button
+          onClick={toggleSidebar}
+          className={`absolute z-20 top-1/2 -translate-y-1/2 
+                     w-6 h-16 flex items-center justify-center
+                     bg-dark-800 border border-glass-border rounded-r-lg
+                     hover:bg-accent/20 hover:border-accent/50
+                     transition-all duration-300 ease-in-out
+                     ${sidebarOpen ? "left-96" : "left-0"}`}
+          title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+        >
+          {sidebarOpen ? (
+            <ChevronLeft className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+          )}
+        </button>
+
+        {/* Map Container */}
         <div className="flex-1 relative">
           <MapContainer
             origin={origin}
