@@ -116,18 +116,26 @@ function HoverTooltip({ result, position }) {
   const detourMinutes = Math.max(0, result.detour.minutes);
   const detourDisplay = `+${detourMinutes} min`;
 
+  // Calculate safe position - ensure tooltip stays in viewport
+  // Tooltip max height is approximately 350px (with image) or 220px (without)
+  const estimatedHeight = result.photoUrl ? 270 : 200;
+  const safeTop = Math.max(10, position.y - estimatedHeight - 20);
+
+  // Ensure horizontal position stays within viewport
+  const safeLeft = Math.min(Math.max(150, position.x), window.innerWidth - 150);
+
   return (
     <div
       className="fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl animate-fadeIn pointer-events-none"
       style={{
-        left: position.x,
-        top: position.y - 12,
-        transform: "translate(-50%, -100%)",
+        left: safeLeft,
+        top: safeTop,
+        transform: "translateX(-50%)",
       }}
     >
-      {/* Photo */}
+      {/* Photo - reduced height */}
       {result.photoUrl && (
-        <div className="h-32 w-full overflow-hidden rounded-t-xl">
+        <div className="h-24 w-full overflow-hidden rounded-t-xl">
           <img
             src={result.photoUrl}
             alt={result.name}
@@ -137,7 +145,7 @@ function HoverTooltip({ result, position }) {
         </div>
       )}
 
-      <div className="p-4 space-y-3">
+      <div className="p-3 space-y-2">
         {/* Full Name */}
         <h4 className="font-semibold text-white text-sm leading-tight">
           {result.name}
@@ -146,7 +154,7 @@ function HoverTooltip({ result, position }) {
         {/* Full Address */}
         <div className="flex items-start gap-2 text-xs text-gray-400">
           <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-accent-light" />
-          <span>{result.address}</span>
+          <span className="line-clamp-2">{result.address}</span>
         </div>
 
         {/* Rating Details */}
@@ -169,16 +177,16 @@ function HoverTooltip({ result, position }) {
           </div>
         )}
 
-        {/* AI Analysis */}
+        {/* AI Analysis - compact */}
         {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
-          <div className="p-2.5 rounded-lg bg-accent/10 border border-accent/20">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-accent-light" />
+          <div className="p-2 rounded-lg bg-accent/10 border border-accent/20">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-accent-light flex-shrink-0" />
               <span className="text-xs text-accent-light font-medium">
-                AI Confidence: {Math.round(result.aiAnalysis.confidence * 100)}%
+                AI: {Math.round(result.aiAnalysis.confidence * 100)}%
               </span>
             </div>
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <p className="text-xs text-gray-400 leading-relaxed mt-1 line-clamp-2">
               {result.aiAnalysis.explanation}
             </p>
           </div>
@@ -192,12 +200,12 @@ function HoverTooltip({ result, position }) {
           </div>
           <div className="flex items-center gap-1.5 text-gray-400 text-xs">
             <Timer className="w-3.5 h-3.5" />
-            <span>Total trip: {totalTimeDisplay}</span>
+            <span>Total: {totalTimeDisplay}</span>
           </div>
         </div>
       </div>
 
-      {/* Arrow */}
+      {/* Arrow pointing down to the card */}
       <div
         className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 
                    bg-[#111118] border-r border-b border-glass-border"
