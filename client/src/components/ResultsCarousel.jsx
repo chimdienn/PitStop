@@ -149,8 +149,12 @@ function HoverTooltip({ result, position }) {
   const detourMinutes = Math.max(0, result.detour.minutes);
   const detourDisplay = `+${detourMinutes} min`;
 
-  // Fixed gap between tooltip bottom and card top
-  const GAP = 12;
+  // Gap between arrow tip and card top
+  // Arrow is 8px below tooltip (-bottom-2), plus 8px visual gap
+  const GAP = 16;
+  const topAlign = result.aiAnalysis
+    ? position.y - GAP - 350
+    : position.y - GAP - 250;
 
   // Ensure horizontal position stays within viewport
   const safeLeft = Math.min(Math.max(150, position.x), window.innerWidth - 150);
@@ -160,7 +164,7 @@ function HoverTooltip({ result, position }) {
       className="fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl animate-fadeIn pointer-events-none"
       style={{
         left: safeLeft,
-        top: position.y - GAP,
+        top: topAlign,
         transform: "translate(-50%, -100%)",
       }}
     >
