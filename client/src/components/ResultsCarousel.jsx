@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Star,
   Clock,
-  ExternalLink,
   Sparkles,
   MapPin,
   CheckCircle,
@@ -25,6 +24,31 @@ function ResultsCarousel({
 }) {
   const [hoveredResult, setHoveredResult] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const scrollContainerRef = useRef(null);
+  const [prevResultsCount, setPrevResultsCount] = useState(
+    results?.length || 0,
+  );
+
+  // Auto-scroll when more results are added
+  useEffect(() => {
+    if (
+      results &&
+      results.length > prevResultsCount &&
+      scrollContainerRef.current
+    ) {
+      // Small delay to ensure new cards are rendered
+      setTimeout(() => {
+        const container = scrollContainerRef.current;
+        // Scroll to show new items (scroll to end minus a bit to show some new cards)
+        const scrollAmount = container.scrollWidth - container.clientWidth;
+        container.scrollTo({
+          left: scrollAmount,
+          behavior: "smooth",
+        });
+      }, 50);
+    }
+    setPrevResultsCount(results?.length || 0);
+  }, [results?.length, prevResultsCount]);
 
   if (!results || results.length === 0) return null;
 
@@ -39,6 +63,12 @@ function ResultsCarousel({
 
   const handleMouseLeave = () => {
     setHoveredResult(null);
+  };
+
+  const handleShowMore = () => {
+    if (onShowMore) {
+      onShowMore();
+    }
   };
 
   return (
@@ -64,7 +94,10 @@ function ResultsCarousel({
         )}
 
         {/* Scrollable cards container */}
-        <div className="flex-1 overflow-x-auto pb-2 scrollbar-hide">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-x-auto pb-2 scrollbar-hide"
+        >
           <div className="flex gap-3 w-max">
             {results.map((result, index) => (
               <ResultCard
@@ -83,7 +116,7 @@ function ResultsCarousel({
         {/* More button */}
         {onShowMore && (
           <button
-            onClick={onShowMore}
+            onClick={handleShowMore}
             className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-3 
                        rounded-xl bg-dark-700/90 border border-glass-border 
                        hover:bg-accent/20 hover:border-accent/50 transition-all duration-200"
@@ -116,14 +149,8 @@ function HoverTooltip({ result, position }) {
   const detourMinutes = Math.max(0, result.detour.minutes);
   const detourDisplay = `+${detourMinutes} min`;
 
-  // Calculate safe position - ensure tooltip stays in viewport
-  // Tooltip max height is approximately 350px (with image) or 220px (without)
-  const estimatedHeight = !result.photoUrl
-    ? 200
-    : result.aiAnalysis
-      ? 330
-      : 260;
-  const safeTop = Math.max(10, position.y - estimatedHeight - 20);
+  // Fixed gap between tooltip bottom and card top
+  const GAP = 12;
 
   // Ensure horizontal position stays within viewport
   const safeLeft = Math.min(Math.max(150, position.x), window.innerWidth - 150);
@@ -133,8 +160,8 @@ function HoverTooltip({ result, position }) {
       className="fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl animate-fadeIn pointer-events-none"
       style={{
         left: safeLeft,
-        top: safeTop,
-        transform: "translateX(-50%)",
+        top: position.y - GAP,
+        transform: "translate(-50%, -100%)",
       }}
     >
       {/* Photo - reduced height */}
@@ -319,16 +346,6 @@ function ResultCard({
           </div>
         )}
       </div>
-
-      {/* AI Analysis - compact */}
-      {/* {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
-        <div className="flex items-center gap-1 text-xs">
-          <Sparkles className="w-3 h-3 text-accent-light" />
-          <span className="text-accent-light font-medium">
-            AI: {Math.round(result.aiAnalysis.confidence * 100)}%
-          </span>
-        </div>
-      )} */}
 
       {/* Address */}
       <div className="text-xs text-gray-400 truncate">{result.address}</div>
