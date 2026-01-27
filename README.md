@@ -8,11 +8,10 @@ A full-stack route optimization web application that finds optimal intermediate 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
-- [Screenshots](#screenshots)
+- [Snapshots](#project-snapshots)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [API Endpoints](#api-endpoints)
-- [Deployment](#deployment)
 - [License](#license)
 
 ## Overview
