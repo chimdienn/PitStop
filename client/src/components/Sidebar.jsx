@@ -105,8 +105,9 @@ function Sidebar({
 
       {/* History Panel */}
       {showHistory && routeHistory && routeHistory.length > 0 && (
-        <div className="border-b border-glass-border bg-dark-900/50 max-h-64 overflow-y-auto">
-          <div className="p-3 flex items-center justify-between border-b border-glass-border">
+        <div className="border-b border-glass-border bg-dark-900/50 flex flex-col max-h-64">
+          {/* Sticky Header */}
+          <div className="sticky top-0 z-10 p-3 flex items-center justify-between border-b border-glass-border bg-dark-900">
             <span className="text-sm font-medium text-gray-400">
               Recent Searches
             </span>
@@ -118,8 +119,9 @@ function Sidebar({
               Clear All
             </button>
           </div>
-          <div className="p-2 space-y-1">
-            {routeHistory.map((item, index) => (
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {routeHistory.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center gap-2 p-2 rounded-lg hover:bg-dark-700/50 group"
@@ -235,6 +237,7 @@ function Sidebar({
             <Sparkles className="w-4 h-4 text-accent-light" />
             <span className="text-sm text-gray-300">AI-powered search</span>
           </label>
+          <span className="text-xs text-gray-500">Analyzes reviews</span>
         </div>
 
         {/* Error Message */}
