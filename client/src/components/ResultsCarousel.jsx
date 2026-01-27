@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Star,
   Clock,
@@ -9,6 +10,8 @@ import {
   Timer,
   ChevronRight,
   ChevronLeft,
+  Search,
+  Navigation,
 } from "lucide-react";
 
 function ResultsCarousel({
@@ -80,9 +83,21 @@ function ResultsCarousel({
 }
 
 function ResultCard({ result, index, isSelected, onClick }) {
+  const [isHovered, setIsHovered] = useState(false);
+
   const handleOpenMaps = (e) => {
     e.stopPropagation();
     window.open(result.googleMapsUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleOpenSearch = (e) => {
+    e.stopPropagation();
+    const searchQuery = encodeURIComponent(`${result.name} ${result.address}`);
+    window.open(
+      `https://www.google.com/search?q=${searchQuery}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   };
 
   const totalTravelMinutes = Math.round(
@@ -98,94 +113,205 @@ function ResultCard({ result, index, isSelected, onClick }) {
 
   return (
     <div
-      onClick={onClick}
-      className={`
-        glass-card cursor-pointer flex-shrink-0
-        w-56 p-3 space-y-2
-        transition-all duration-300 ease-out
-        ${
-          isSelected
-            ? "ring-2 ring-accent shadow-glow-lg scale-105"
-            : "hover:scale-[1.02] opacity-80 hover:opacity-100"
-        }
-      `}
+      className="relative"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-accent/30 text-accent-light text-xs font-bold flex items-center justify-center">
-          {index + 1}
-        </span>
-        <h3 className="font-semibold text-white truncate text-sm">
-          {result.name}
-        </h3>
-      </div>
+      {/* Hover Preview Tooltip */}
+      {isHovered && (
+        <div
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50 w-72 
+                        bg-[#111118] border border-glass-border rounded-xl shadow-2xl
+                        animate-fadeIn pointer-events-none"
+        >
+          {/* Photo */}
+          {result.photoUrl && (
+            <div className="h-32 w-full overflow-hidden rounded-t-xl">
+              <img
+                src={result.photoUrl}
+                alt={result.name}
+                className="w-full h-full object-cover"
+                onError={(e) => (e.target.style.display = "none")}
+              />
+            </div>
+          )}
 
-      {/* Time Info */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5 text-accent-light" />
-          <span className="text-base font-bold text-accent-light">
-            {detourDisplay}
-          </span>
-        </div>
-        <div className="flex items-center gap-1 text-gray-400 text-xs">
-          <Timer className="w-3 h-3" />
-          <span>{totalTimeDisplay}</span>
-        </div>
-      </div>
+          <div className="p-4 space-y-3">
+            {/* Full Name */}
+            <h4 className="font-semibold text-white text-sm leading-tight">
+              {result.name}
+            </h4>
 
-      {/* Rating & Status */}
-      <div className="flex items-center gap-2 text-xs">
-        {result.rating && (
-          <div className="flex items-center gap-1">
-            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-            <span className="text-white font-medium">{result.rating}</span>
-          </div>
-        )}
+            {/* Full Address */}
+            <div className="flex items-start gap-2 text-xs text-gray-400">
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-accent-light" />
+              <span>{result.address}</span>
+            </div>
 
-        {result.isOpen !== null && (
-          <div
-            className={`flex items-center gap-1 ${result.isOpen ? "text-green-400" : "text-red-400"}`}
-          >
-            {result.isOpen ? (
-              <>
-                <CheckCircle className="w-3 h-3" />
-                <span>Open</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-3 h-3" />
-                <span>Closed</span>
-              </>
+            {/* Rating Details */}
+            {result.rating && (
+              <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                  <span className="text-white font-medium">
+                    {result.rating}
+                  </span>
+                </div>
+                <span className="text-gray-500">
+                  ({result.userRatingCount?.toLocaleString() || 0} reviews)
+                </span>
+                {result.isOpen !== null && (
+                  <span
+                    className={`ml-auto ${result.isOpen ? "text-green-400" : "text-red-400"}`}
+                  >
+                    {result.isOpen ? "● Open" : "● Closed"}
+                  </span>
+                )}
+              </div>
             )}
-          </div>
-        )}
-      </div>
 
-      {/* AI Analysis - compact */}
-      {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
-        <div className="flex items-center gap-1 text-xs">
-          <Sparkles className="w-3 h-3 text-accent-light" />
-          <span className="text-accent-light font-medium">
-            AI: {Math.round(result.aiAnalysis.confidence * 100)}%
-          </span>
+            {/* AI Analysis */}
+            {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
+              <div className="p-2.5 rounded-lg bg-accent/10 border border-accent/20">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-accent-light" />
+                  <span className="text-xs text-accent-light font-medium">
+                    AI Confidence:{" "}
+                    {Math.round(result.aiAnalysis.confidence * 100)}%
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  {result.aiAnalysis.explanation}
+                </p>
+              </div>
+            )}
+
+            {/* Time Summary */}
+            <div className="flex items-center justify-between pt-2 border-t border-glass-border">
+              <div className="flex items-center gap-1.5 text-accent-light">
+                <Clock className="w-3.5 h-3.5" />
+                <span className="text-sm font-semibold">{detourDisplay}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+                <Timer className="w-3.5 h-3.5" />
+                <span>Total trip: {totalTimeDisplay}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Arrow */}
+          <div
+            className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 
+                          bg-[#111118] border-r border-b border-glass-border"
+          />
         </div>
       )}
 
-      {/* Address */}
-      <div className="text-xs text-gray-400 truncate">{result.address}</div>
-
-      {/* Open in Google Maps Button */}
-      <button
-        onClick={handleOpenMaps}
-        className="w-full py-1.5 px-2 rounded-lg bg-accent hover:bg-accent-light 
-                   text-white font-medium text-xs
-                   flex items-center justify-center gap-1
-                   transition-all duration-200"
+      {/* Main Card */}
+      <div
+        onClick={onClick}
+        className={`
+          glass-card cursor-pointer flex-shrink-0
+          w-56 p-3 space-y-2
+          transition-all duration-300 ease-out
+          ${
+            isSelected
+              ? "ring-2 ring-accent shadow-glow-lg scale-105"
+              : "hover:scale-[1.02] opacity-80 hover:opacity-100"
+          }
+        `}
       >
-        <ExternalLink className="w-3 h-3" />
-        Google Maps
-      </button>
+        {/* Header */}
+        <div className="flex items-center gap-2">
+          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-accent/30 text-accent-light text-xs font-bold flex items-center justify-center">
+            {index + 1}
+          </span>
+          <h3 className="font-semibold text-white truncate text-sm">
+            {result.name}
+          </h3>
+        </div>
+
+        {/* Time Info */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5 text-accent-light" />
+            <span className="text-base font-bold text-accent-light">
+              {detourDisplay}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 text-gray-400 text-xs">
+            <Timer className="w-3 h-3" />
+            <span>{totalTimeDisplay}</span>
+          </div>
+        </div>
+
+        {/* Rating & Status */}
+        <div className="flex items-center gap-2 text-xs">
+          {result.rating && (
+            <div className="flex items-center gap-1">
+              <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+              <span className="text-white font-medium">{result.rating}</span>
+            </div>
+          )}
+
+          {result.isOpen !== null && (
+            <div
+              className={`flex items-center gap-1 ${result.isOpen ? "text-green-400" : "text-red-400"}`}
+            >
+              {result.isOpen ? (
+                <>
+                  <CheckCircle className="w-3 h-3" />
+                  <span>Open</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-3 h-3" />
+                  <span>Closed</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* AI Analysis - compact */}
+        {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
+          <div className="flex items-center gap-1 text-xs">
+            <Sparkles className="w-3 h-3 text-accent-light" />
+            <span className="text-accent-light font-medium">
+              AI: {Math.round(result.aiAnalysis.confidence * 100)}%
+            </span>
+          </div>
+        )}
+
+        {/* Address */}
+        <div className="text-xs text-gray-400 truncate">{result.address}</div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleOpenMaps}
+            className="flex-1 py-1.5 px-2 rounded-lg bg-accent hover:bg-accent-light 
+                       text-white font-medium text-xs
+                       flex items-center justify-center gap-1
+                       transition-all duration-200"
+            title="Open route in Google Maps"
+          >
+            <Navigation className="w-3 h-3" />
+            Route
+          </button>
+          <button
+            onClick={handleOpenSearch}
+            className="flex-1 py-1.5 px-2 rounded-lg bg-dark-600 hover:bg-dark-500
+                       text-gray-300 hover:text-white font-medium text-xs
+                       flex items-center justify-center gap-1 border border-glass-border
+                       transition-all duration-200"
+            title="Search on Google"
+          >
+            <Search className="w-3 h-3" />
+            Search
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
