@@ -74,7 +74,7 @@ function Sidebar({
   };
 
   return (
-    <aside className="w-96 h-full flex flex-col bg-dark-800/80 backdrop-blur-xl border-r border-glass-border">
+    <aside className="w-96 min-w-96 h-full flex flex-col bg-dark-800/80 backdrop-blur-xl border-r border-glass-border">
       {/* Header */}
       <div className="p-6 border-b border-glass-border">
         <div className="flex items-center justify-between">
