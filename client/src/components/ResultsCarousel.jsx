@@ -118,7 +118,7 @@ function HoverTooltip({ result, position }) {
 
   return (
     <div
-      className="fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl animate-fadeIn"
+      className="fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl animate-fadeIn pointer-events-none"
       style={{
         left: position.x,
         top: position.y - 12,
