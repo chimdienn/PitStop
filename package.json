@@ -14,11 +14,14 @@
   "keywords": [
     "navigation",
     "route-optimization",
-    "google-maps",
-    "mern-stack"
+    "google-maps"
   ],
   "author": "",
   "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.19.0",
+    "polyline": "^0.2.0"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
