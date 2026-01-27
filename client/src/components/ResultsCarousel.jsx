@@ -118,7 +118,11 @@ function HoverTooltip({ result, position }) {
 
   // Calculate safe position - ensure tooltip stays in viewport
   // Tooltip max height is approximately 350px (with image) or 220px (without)
-  const estimatedHeight = result.photoUrl ? 270 : 200;
+  const estimatedHeight = !result.photoUrl
+    ? 200
+    : result.aiAnalysis
+      ? 330
+      : 260;
   const safeTop = Math.max(10, position.y - estimatedHeight - 20);
 
   // Ensure horizontal position stays within viewport
@@ -183,7 +187,7 @@ function HoverTooltip({ result, position }) {
             <div className="flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-accent-light flex-shrink-0" />
               <span className="text-xs text-accent-light font-medium">
-                AI: {Math.round(result.aiAnalysis.confidence * 100)}%
+                AI Overview:
               </span>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed mt-1 line-clamp-2">
@@ -317,14 +321,14 @@ function ResultCard({
       </div>
 
       {/* AI Analysis - compact */}
-      {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
+      {/* {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
         <div className="flex items-center gap-1 text-xs">
           <Sparkles className="w-3 h-3 text-accent-light" />
           <span className="text-accent-light font-medium">
             AI: {Math.round(result.aiAnalysis.confidence * 100)}%
           </span>
         </div>
-      )}
+      )} */}
 
       {/* Address */}
       <div className="text-xs text-gray-400 truncate">{result.address}</div>
