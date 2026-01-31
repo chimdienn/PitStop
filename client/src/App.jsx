@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { LoadScript } from "@react-google-maps/api";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import MapContainer from "./components/MapContainer";
 import ResultsCarousel from "./components/ResultsCarousel";
@@ -13,9 +13,30 @@ const MAX_HISTORY_ITEMS = 20;
 const RESULTS_INCREMENT = 5;
 const MAX_DISPLAYED_RESULTS = 20;
 
+// Custom hook for responsive detection
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
+    const listener = (e) => setMatches(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, [matches, query]);
+
+  return matches;
+}
+
 function App() {
   const [userLocation, setUserLocation] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Responsive breakpoints
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const isTablet = useMediaQuery("(min-width: 768px) and (max-width: 1024px)");
 
   // Form state
   const [origin, setOrigin] = useState(null);
@@ -35,6 +56,25 @@ function App() {
 
   // Route history state
   const [routeHistory, setRouteHistory] = useState([]);
+
+  // Close sidebar by default on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    } else {
+      setSidebarOpen(true);
+    }
+  }, [isMobile]);
+
+  // Prevent body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      document.body.classList.add("overflow-hidden");
+    } else {
+      document.body.classList.remove("overflow-hidden");
+    }
+    return () => document.body.classList.remove("overflow-hidden");
+  }, [isMobile, sidebarOpen]);
 
   // Load route history from localStorage
   useEffect(() => {
@@ -179,6 +219,11 @@ function App() {
     setAllResults(null);
     setDisplayCount(RESULTS_INCREMENT);
 
+    // Close sidebar on mobile after search
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+
     try {
       const response = await optimizeRoute({
         origin: { lat: origin.lat, lng: origin.lng },
@@ -214,7 +259,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [origin, destination, query, useAI, saveToHistory]);
+  }, [origin, destination, query, useAI, saveToHistory, isMobile]);
 
   const handleChipSelect = useCallback((chipQuery) => {
     setQuery(chipQuery);
@@ -248,18 +293,18 @@ function App() {
 
   if (!apiKey) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-dark-900 p-8">
-        <div className="glass-card p-8 max-w-md text-center">
-          <h1 className="text-2xl font-bold text-red-400 mb-4">
+      <div className="h-screen w-screen flex items-center justify-center bg-dark-900 p-4 md:p-8">
+        <div className="glass-card p-6 md:p-8 max-w-md text-center">
+          <h1 className="text-xl md:text-2xl font-bold text-red-400 mb-4">
             Configuration Error
           </h1>
-          <p className="text-gray-400">
+          <p className="text-gray-400 text-sm md:text-base">
             Google Maps API key is not configured. Please add{" "}
-            <code className="text-accent bg-dark-700 px-2 py-1 rounded">
+            <code className="text-accent bg-dark-700 px-2 py-1 rounded text-xs md:text-sm">
               VITE_GOOGLE_MAPS_API_KEY
             </code>{" "}
             to your{" "}
-            <code className="text-accent bg-dark-700 px-2 py-1 rounded">
+            <code className="text-accent bg-dark-700 px-2 py-1 rounded text-xs md:text-sm">
               .env
             </code>{" "}
             file.
@@ -272,50 +317,106 @@ function App() {
   return (
     <LoadScript googleMapsApiKey={apiKey} libraries={GOOGLE_MAPS_LIBRARIES}>
       <div className="h-screen w-screen flex overflow-hidden bg-dark-900">
-        {/* Sidebar with animation */}
-        <div
-          className={`h-full transition-all duration-300 ease-in-out ${
-            sidebarOpen ? "w-96" : "w-0"
-          } overflow-hidden`}
-        >
-          <Sidebar
-            origin={origin}
-            setOrigin={setOrigin}
-            destination={destination}
-            setDestination={setDestination}
-            query={query}
-            setQuery={setQuery}
-            useAI={useAI}
-            setUseAI={setUseAI}
-            onSearch={handleSearch}
-            onChipSelect={handleChipSelect}
-            isLoading={isLoading}
-            error={error}
-            userLocation={userLocation}
-            routeHistory={routeHistory}
-            onLoadHistory={handleLoadHistory}
-            onDeleteHistory={handleDeleteHistory}
-            onClearAllHistory={handleClearAllHistory}
-          />
-        </div>
+        {/* Mobile Menu Button */}
+        {isMobile && !sidebarOpen && (
+          <button
+            onClick={toggleSidebar}
+            className="fixed top-4 left-4 z-30 p-3 rounded-xl bg-dark-800/90 border border-glass-border
+                       shadow-lg backdrop-blur-sm
+                       hover:bg-accent/20 hover:border-accent/50 transition-all duration-200"
+            aria-label="Open menu"
+          >
+            <Menu className="w-6 h-6 text-white" />
+          </button>
+        )}
 
-        {/* Toggle Button */}
-        <button
-          onClick={toggleSidebar}
-          className={`absolute z-20 top-1/2 -translate-y-1/2 
-                     w-6 h-16 flex items-center justify-center
-                     bg-dark-800 border border-glass-border rounded-r-lg
-                     hover:bg-accent/20 hover:border-accent/50
-                     transition-all duration-300 ease-in-out
-                     ${sidebarOpen ? "left-96" : "left-0"}`}
-          title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-        >
-          {sidebarOpen ? (
-            <ChevronLeft className="w-4 h-4 text-gray-400" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-          )}
-        </button>
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <>
+            <div
+              className={`h-full transition-all duration-300 ease-in-out ${
+                sidebarOpen ? (isTablet ? "w-80" : "w-96") : "w-0"
+              } overflow-hidden`}
+            >
+              <Sidebar
+                origin={origin}
+                setOrigin={setOrigin}
+                destination={destination}
+                setDestination={setDestination}
+                query={query}
+                setQuery={setQuery}
+                useAI={useAI}
+                setUseAI={setUseAI}
+                onSearch={handleSearch}
+                onChipSelect={handleChipSelect}
+                isLoading={isLoading}
+                error={error}
+                userLocation={userLocation}
+                routeHistory={routeHistory}
+                onLoadHistory={handleLoadHistory}
+                onDeleteHistory={handleDeleteHistory}
+                onClearAllHistory={handleClearAllHistory}
+                isMobile={false}
+                isTablet={isTablet}
+                onClose={() => setSidebarOpen(false)}
+              />
+            </div>
+
+            {/* Desktop Toggle Button */}
+            <button
+              onClick={toggleSidebar}
+              className={`absolute z-20 top-1/2 -translate-y-1/2 
+                         w-6 h-16 flex items-center justify-center
+                         bg-dark-800 border border-glass-border rounded-r-lg
+                         hover:bg-accent/20 hover:border-accent/50
+                         transition-all duration-300 ease-in-out
+                         ${sidebarOpen ? (isTablet ? "left-80" : "left-96") : "left-0"}`}
+              title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+            >
+              {sidebarOpen ? (
+                <ChevronLeft className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              )}
+            </button>
+          </>
+        )}
+
+        {/* Mobile Sidebar Overlay */}
+        {isMobile && sidebarOpen && (
+          <div className="fixed inset-0 z-40">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 mobile-overlay-backdrop"
+              onClick={() => setSidebarOpen(false)}
+            />
+            {/* Sidebar */}
+            <div className="absolute inset-y-0 left-0 w-full max-w-sm slide-in-left safe-area-top">
+              <Sidebar
+                origin={origin}
+                setOrigin={setOrigin}
+                destination={destination}
+                setDestination={setDestination}
+                query={query}
+                setQuery={setQuery}
+                useAI={useAI}
+                setUseAI={setUseAI}
+                onSearch={handleSearch}
+                onChipSelect={handleChipSelect}
+                isLoading={isLoading}
+                error={error}
+                userLocation={userLocation}
+                routeHistory={routeHistory}
+                onLoadHistory={handleLoadHistory}
+                onDeleteHistory={handleDeleteHistory}
+                onClearAllHistory={handleClearAllHistory}
+                isMobile={true}
+                isTablet={false}
+                onClose={() => setSidebarOpen(false)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Map Container */}
         <div className="flex-1 relative">
@@ -338,6 +439,8 @@ function App() {
               onShowLess={canShowLess ? handleShowLess : null}
               displayCount={displayCount}
               totalResults={allResults?.length || 0}
+              isMobile={isMobile}
+              isTablet={isTablet}
             />
           )}
 
