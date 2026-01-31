@@ -258,25 +258,36 @@ function Sidebar({
 
         {/* AI Toggle */}
         <div
-          className={`flex items-center gap-3 ${isMobile ? "p-2.5" : "p-3"} rounded-xl bg-dark-700/50 border border-glass-border`}
+          className={`flex items-center ${isMobile ? "gap-2 p-2" : "gap-3 p-3"} rounded-xl bg-dark-700/50 border border-glass-border cursor-pointer`}
+          onClick={() => setUseAI(!useAI)}
         >
-          <input
-            type="checkbox"
-            id="useAI"
-            checked={useAI}
-            onChange={(e) => setUseAI(e.target.checked)}
-            className="w-5 h-5 rounded accent-accent cursor-pointer"
-          />
+          <div
+            className={`relative flex items-center justify-center ${isMobile ? "w-5 h-5" : "w-6 h-6"}`}
+          >
+            <input
+              type="checkbox"
+              id="useAI"
+              checked={useAI}
+              onChange={(e) => setUseAI(e.target.checked)}
+              className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} rounded accent-accent cursor-pointer`}
+            />
+          </div>
           <label
             htmlFor="useAI"
-            className="flex items-center gap-2 cursor-pointer flex-1"
+            className={`flex items-center ${isMobile ? "gap-1.5" : "gap-2"} cursor-pointer flex-1`}
           >
-            <Sparkles className="w-4 h-4 text-accent-light" />
-            <span className="text-sm text-gray-300">AI-powered search</span>
+            <Sparkles
+              className={`${isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} text-accent-light`}
+            />
+            <span
+              className={`${isMobile ? "text-xs" : "text-sm"} text-gray-300`}
+            >
+              AI-powered search
+            </span>
           </label>
-          <span className="text-xs text-gray-500 hidden sm:inline">
-            Analyzes reviews
-          </span>
+          {!isMobile && (
+            <span className="text-xs text-gray-500">Analyzes reviews</span>
+          )}
         </div>
 
         {/* Error Message */}
