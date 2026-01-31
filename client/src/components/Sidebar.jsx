@@ -258,20 +258,41 @@ function Sidebar({
 
         {/* AI Toggle */}
         <div
-          className={`flex items-center ${isMobile ? "gap-2 p-2" : "gap-3 p-3"} rounded-xl bg-dark-700/50 border border-glass-border cursor-pointer`}
+          className={`flex items-center ${isMobile ? "gap-2.5 p-2.5" : "gap-3 p-3"} rounded-xl bg-dark-700/50 border border-glass-border cursor-pointer`}
           onClick={() => setUseAI(!useAI)}
         >
+          {/* Custom Checkbox */}
           <div
-            className={`relative flex items-center justify-center ${isMobile ? "w-5 h-5" : "w-6 h-6"}`}
+            className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} rounded border-2 flex items-center justify-center transition-all duration-200
+                ${
+                  useAI
+                    ? "bg-accent border-accent"
+                    : "bg-transparent border-gray-500"
+                }`}
           >
-            <input
-              type="checkbox"
-              id="useAI"
-              checked={useAI}
-              onChange={(e) => setUseAI(e.target.checked)}
-              className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} rounded accent-accent cursor-pointer`}
-            />
+            {useAI && (
+              <svg
+                className={`${isMobile ? "w-2.5 h-2.5" : "w-3 h-3"} text-white`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            )}
           </div>
+          <input
+            type="checkbox"
+            id="useAI"
+            checked={useAI}
+            onChange={(e) => setUseAI(e.target.checked)}
+            className="sr-only"
+          />
           <label
             htmlFor="useAI"
             className={`flex items-center ${isMobile ? "gap-1.5" : "gap-2"} cursor-pointer flex-1`}
