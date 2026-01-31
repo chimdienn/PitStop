@@ -16,6 +16,9 @@ config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy - Required for VS Code port forwarding, ngrok, Vercel, etc.
+app.set("trust proxy", 1);
+
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -68,6 +71,7 @@ app.use(
     credentials: true,
   }),
 );
+
 app.use(express.json());
 app.use("/api", limiter);
 
