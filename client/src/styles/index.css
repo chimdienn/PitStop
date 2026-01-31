@@ -234,3 +234,124 @@ input[type="range"]::-moz-range-thumb {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ==================== MOBILE RESPONSIVE STYLES ==================== */
+
+/* Safe area for notched devices (iPhone X+, etc.) */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Mobile overlay backdrop */
+.mobile-overlay-backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Mobile sidebar slide animation */
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutToLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+.slide-in-left {
+  animation: slideInFromLeft 0.3s ease-out forwards;
+}
+
+/* Mobile bottom sheet animation */
+@keyframes slideUpFromBottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.slide-up-bottom {
+  animation: slideUpFromBottom 0.3s ease-out forwards;
+}
+
+/* Prevent body scroll when modal is open */
+.overflow-hidden {
+  overflow: hidden !important;
+}
+
+/* Mobile-specific glass card */
+@media (max-width: 768px) {
+  .glass-card {
+    border-radius: 0.75rem;
+  }
+
+  .glass-input {
+    padding: 0.625rem 0.875rem;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  .glass-button {
+    padding: 0.875rem 1.25rem;
+  }
+
+  .chip {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 768px) {
+  button,
+  [role="button"],
+  input[type="checkbox"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Mobile result card styles */
+.mobile-result-card {
+  width: 160px;
+  min-width: 160px;
+}
+
+@media (min-width: 400px) {
+  .mobile-result-card {
+    width: 180px;
+    min-width: 180px;
+  }
+}
+
+/* Tablet result card styles */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tablet-result-card {
+    width: 200px;
+    min-width: 200px;
+  }
+}
