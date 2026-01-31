@@ -37,6 +37,9 @@ function Sidebar({
   onLoadHistory,
   onDeleteHistory,
   onClearAllHistory,
+  isMobile = false,
+  isTablet = false,
+  onClose,
 }) {
   const [showHistory, setShowHistory] = useState(false);
 
@@ -73,30 +76,58 @@ function Sidebar({
     );
   };
 
+  // Dynamic width classes
+  const widthClass = isMobile
+    ? "w-full"
+    : isTablet
+      ? "w-80 min-w-80"
+      : "w-96 min-w-96";
+
   return (
-    <aside className="w-96 min-w-96 h-full flex flex-col bg-dark-800/80 backdrop-blur-xl border-r border-glass-border">
+    <aside
+      className={`${widthClass} h-full flex flex-col bg-dark-800/95 backdrop-blur-xl border-r border-glass-border`}
+    >
       {/* Header */}
-      <div className="p-6 border-b border-glass-border">
+      <div
+        className={`${isMobile ? "p-4" : "p-6"} border-b border-glass-border`}
+      >
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-              <Navigation className="w-5 h-5 text-accent-light" />
+          <h1
+            className={`${isMobile ? "text-xl" : "text-2xl"} font-bold text-white flex items-center gap-2`}
+          >
+            <div
+              className={`${isMobile ? "w-7 h-7" : "w-8 h-8"} rounded-lg bg-accent/20 flex items-center justify-center`}
+            >
+              <Navigation
+                className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-accent-light`}
+              />
             </div>
             Pit Stop
           </h1>
-          {routeHistory && routeHistory.length > 0 && (
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className={`p-2 rounded-lg transition-colors ${
-                showHistory
-                  ? "bg-accent/20 text-accent-light"
-                  : "hover:bg-dark-600 text-gray-400"
-              }`}
-              title="Route History"
-            >
-              <History className="w-5 h-5" />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {routeHistory && routeHistory.length > 0 && (
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className={`p-2 rounded-lg transition-colors ${
+                  showHistory
+                    ? "bg-accent/20 text-accent-light"
+                    : "hover:bg-dark-600 text-gray-400"
+                }`}
+                title="Route History"
+              >
+                <History className="w-5 h-5" />
+              </button>
+            )}
+            {isMobile && onClose && (
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg hover:bg-dark-600 text-gray-400 transition-colors"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-gray-500 text-sm mt-1">
           Find the best stops along your route
@@ -105,7 +136,9 @@ function Sidebar({
 
       {/* History Panel */}
       {showHistory && routeHistory && routeHistory.length > 0 && (
-        <div className="border-b border-glass-border bg-dark-900/50 flex flex-col max-h-64">
+        <div
+          className={`border-b border-glass-border bg-dark-900/50 flex flex-col ${isMobile ? "max-h-48" : "max-h-64"}`}
+        >
           {/* Sticky Header */}
           <div className="sticky top-0 z-10 p-3 flex items-center justify-between border-b border-glass-border bg-dark-900">
             <span className="text-sm font-medium text-gray-400">
@@ -131,7 +164,7 @@ function Sidebar({
                     onLoadHistory(item);
                     setShowHistory(false);
                   }}
-                  className="flex-1 text-left"
+                  className="flex-1 text-left min-w-0"
                 >
                   <p className="text-sm text-white truncate">{item.query}</p>
                   <p className="text-xs text-gray-500 truncate">
@@ -143,7 +176,7 @@ function Sidebar({
                 </button>
                 <button
                   onClick={() => onDeleteHistory(item.id)}
-                  className="p-1 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="p-1 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -156,7 +189,7 @@ function Sidebar({
       {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="flex-1 overflow-y-auto p-6 space-y-5"
+        className={`flex-1 overflow-y-auto ${isMobile ? "p-4 space-y-4" : "p-6 space-y-5"}`}
       >
         {/* Origin */}
         <div className="space-y-2">
@@ -170,6 +203,7 @@ function Sidebar({
             placeholder="Enter starting point..."
             onKeyPress={handleKeyPress}
             userLocation={userLocation}
+            isMobile={isMobile}
           />
         </div>
 
@@ -185,6 +219,7 @@ function Sidebar({
             placeholder="Enter destination..."
             onKeyPress={handleKeyPress}
             userLocation={userLocation}
+            isMobile={isMobile}
           />
         </div>
 
@@ -199,7 +234,7 @@ function Sidebar({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="e.g., Starbucks, gas station, toilet..."
+            placeholder="e.g., Starbucks, gas station..."
             className="glass-input w-full"
           />
         </div>
@@ -211,7 +246,7 @@ function Sidebar({
               key={label}
               type="button"
               onClick={() => handleChipClick(chipQuery)}
-              className={`chip flex items-center gap-2 ${
+              className={`chip flex items-center gap-1.5 ${
                 query === chipQuery ? "chip-active" : ""
               }`}
             >
@@ -222,13 +257,15 @@ function Sidebar({
         </div>
 
         {/* AI Toggle */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-dark-700/50 border border-glass-border">
+        <div
+          className={`flex items-center gap-3 ${isMobile ? "p-2.5" : "p-3"} rounded-xl bg-dark-700/50 border border-glass-border`}
+        >
           <input
             type="checkbox"
             id="useAI"
             checked={useAI}
             onChange={(e) => setUseAI(e.target.checked)}
-            className="w-4 h-4 rounded accent-accent cursor-pointer"
+            className="w-5 h-5 rounded accent-accent cursor-pointer"
           />
           <label
             htmlFor="useAI"
@@ -237,17 +274,22 @@ function Sidebar({
             <Sparkles className="w-4 h-4 text-accent-light" />
             <span className="text-sm text-gray-300">AI-powered search</span>
           </label>
+          <span className="text-xs text-gray-500 hidden sm:inline">
+            Analyzes reviews
+          </span>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+          <div
+            className={`${isMobile ? "p-3" : "p-4"} rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm`}
+          >
             {error}
           </div>
         )}
 
         {/* Search Button */}
-        <div className="pt-4">
+        <div className={`${isMobile ? "pt-2" : "pt-4"}`}>
           <button
             type="submit"
             disabled={isLoading || !origin || !destination || !query.trim()}
@@ -256,12 +298,14 @@ function Sidebar({
             {isLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Finding best routes...
+                <span className={isMobile ? "text-sm" : ""}>
+                  Finding routes...
+                </span>
               </>
             ) : (
               <>
                 <Search className="w-5 h-5" />
-                Find Best Route
+                <span>Find Best Route</span>
               </>
             )}
           </button>
@@ -269,10 +313,11 @@ function Sidebar({
       </form>
 
       {/* Footer */}
-      <div className="p-4 border-t border-glass-border">
+      <div
+        className={`${isMobile ? "p-3" : "p-4"} border-t border-glass-border safe-area-bottom`}
+      >
         <p className="text-xs text-gray-600 text-center">
-          Made with 💕 by{" "}
-          <span className="text-accent-light font-medium">Duc Tran</span>
+          Powered by Google Maps & Gemini AI
         </p>
       </div>
     </aside>
