@@ -1,7 +1,65 @@
+/* Google Maps custom styles */
 .gm-style {
   font-family: "Inter", sans-serif !important;
 }
+
+/* Hide Google Maps UI elements */
 .gm-style-cc,
-.gmnoprint.gm-bundled-control.gm-bundled-control-on-bottom {
+.gmnoprint.gm-bundled-control.gm-bundled-control-on-bottom,
+.gm-style-cc:last-child,
+a[href^="https://maps.google.com/maps"] {
   display: none !important;
+}
+
+/* Hide "Keyboard shortcuts" button */
+.gm-style button[title="Keyboard shortcuts"] {
+  display: none !important;
+}
+
+/* Hide terms and report links at bottom */
+.gm-style .gm-style-cc {
+  display: none !important;
+}
+
+/* Hide the Google logo - Note: Check Google's ToS before hiding */
+/* a[href^="https://www.google.com/maps"] {
+  display: none !important;
+} */
+
+/* Style the zoom controls to match dark theme */
+.gm-style .gm-bundled-control-on-bottom {
+  right: 12px !important;
+  bottom: 140px !important;
+}
+
+/* Dark theme for zoom buttons */
+.gm-style .gm-control-active {
+  background-color: #1a1a24 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+}
+
+.gm-style .gm-control-active:hover {
+  background-color: #252532 !important;
+}
+
+.gm-style .gm-control-active > img {
+  filter: invert(1) !important;
+}
+
+/* Hide the "Map Data" and "Terms" footer */
+.gm-style > div:last-child > div:last-child {
+  display: none !important;
+}
+
+/* Alternative: Make the footer less prominent instead of hiding */
+.gm-style a[title="Report errors in the road map or imagery to Google"],
+.gm-style span[role="menubar"] {
+  opacity: 0.3 !important;
+  transition: opacity 0.2s;
+}
+
+.gm-style a[title="Report errors in the road map or imagery to Google"]:hover,
+.gm-style span[role="menubar"]:hover {
+  opacity: 1 !important;
 }
