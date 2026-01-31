@@ -7,6 +7,7 @@ function LocationAutocomplete({
   placeholder,
   onKeyPress,
   userLocation,
+  isMobile = false,
 }) {
   const [inputValue, setInputValue] = useState("");
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -257,6 +258,7 @@ function LocationAutocomplete({
           placeholder={placeholder}
           className="glass-input w-full pr-20"
           autoComplete="off"
+          style={{ fontSize: isMobile ? "16px" : undefined }} // Prevents iOS zoom
         />
 
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
