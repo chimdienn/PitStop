@@ -21,11 +21,6 @@ a[href^="https://maps.google.com/maps"] {
   display: none !important;
 }
 
-/* Hide the Google logo - Note: Check Google's ToS before hiding */
-/* a[href^="https://www.google.com/maps"] {
-  display: none !important;
-} */
-
 /* Style the zoom controls to match dark theme */
 .gm-style .gm-bundled-control-on-bottom {
   right: 12px !important;
