@@ -256,36 +256,51 @@ function LocationAutocomplete({
           onKeyPress={onKeyPress}
           onFocus={handleFocus}
           placeholder={placeholder}
-          className="glass-input w-full pr-20"
+          className={`glass-input w-full ${inputValue ? "pr-20" : "pr-12"}`}
           autoComplete="off"
-          style={{ fontSize: isMobile ? "16px" : undefined }} // Prevents iOS zoom
+          style={{ fontSize: isMobile ? "16px" : undefined }}
         />
 
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+        {/* Buttons container with gradient fade effect */}
+        <div className="absolute right-0 top-0 bottom-0 flex items-center">
+          {/* Gradient fade to hide text overflow */}
           {inputValue && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="p-1.5 rounded-lg hover:bg-dark-600 text-gray-500 hover:text-gray-300 transition-colors"
-              title="Clear"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div
+              className="w-8 h-full pointer-events-none"
+              style={{
+                background:
+                  "linear-gradient(to right, transparent, rgba(26, 26, 36, 1) 80%)",
+              }}
+            />
           )}
 
-          <button
-            type="button"
-            onClick={handleUseCurrentLocation}
-            disabled={isLoadingLocation}
-            className="p-1.5 rounded-lg hover:bg-dark-600 text-gray-500 hover:text-accent-light transition-colors disabled:opacity-50"
-            title="Use current location"
-          >
-            {isLoadingLocation ? (
-              <div className="w-4 h-4 border-2 border-gray-500 border-t-accent-light rounded-full animate-spin" />
-            ) : (
-              <Crosshair className="w-4 h-4" />
+          {/* Buttons with solid background */}
+          <div className="flex items-center gap-0.5 pr-2 pl-1 h-full bg-[#1a1a24]">
+            {inputValue && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="p-1.5 rounded-lg hover:bg-dark-600 text-gray-400 hover:text-white transition-colors"
+                title="Clear"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
-          </button>
+
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={isLoadingLocation}
+              className="p-1.5 rounded-lg hover:bg-dark-600 text-gray-400 hover:text-accent-light transition-colors disabled:opacity-50"
+              title="Use current location"
+            >
+              {isLoadingLocation ? (
+                <div className="w-4 h-4 border-2 border-gray-500 border-t-accent-light rounded-full animate-spin" />
+              ) : (
+                <Crosshair className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
