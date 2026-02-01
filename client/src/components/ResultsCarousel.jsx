@@ -163,16 +163,6 @@ function ResultsCarousel({
             </button>
           )}
         </div>
-
-        {/* Results count indicator */}
-        <div className="text-center mt-1.5 md:mt-2">
-          <span
-            className={`${isMobile ? "text-[10px]" : "text-xs"} text-gray-500`}
-          >
-            {results.length} of {totalResults} results
-            {isMobile && " • Tap for details"}
-          </span>
-        </div>
       </div>
     </>
   );
