@@ -306,9 +306,6 @@ function Sidebar({
               AI-powered search
             </span>
           </label>
-          {!isMobile && (
-            <span className="text-xs text-gray-500">Analyzes reviews</span>
-          )}
         </div>
 
         {/* Error Message */}
