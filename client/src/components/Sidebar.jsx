@@ -168,7 +168,10 @@ function Sidebar({
                 >
                   <p className="text-sm text-white truncate">{item.query}</p>
                   <p className="text-xs text-gray-500 truncate">
-                    {item.originAddress} → {item.destinationAddress}
+                    {item.originAddress}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    → {item.destinationAddress}
                   </p>
                   <p className="text-xs text-gray-600">
                     {formatDate(item.timestamp)}
