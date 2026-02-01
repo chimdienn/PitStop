@@ -345,11 +345,10 @@ function Sidebar({
       </form>
 
       {/* Footer */}
-      <div
-        className={`${isMobile ? "p-3" : "p-4"} border-t border-glass-border safe-area-bottom`}
-      >
+      <div className="p-4 border-t border-glass-border">
         <p className="text-xs text-gray-600 text-center">
-          Powered by Google Maps & Gemini AI
+          Made with 💕 by{" "}
+          <span className="text-accent-light font-medium">Duc Tran</span>
         </p>
       </div>
     </aside>
