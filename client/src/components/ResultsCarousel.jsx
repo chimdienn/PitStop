@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import {
   Star,
   Clock,
@@ -11,6 +11,8 @@ import {
   ChevronLeft,
   Search,
   Navigation,
+  ChevronDown,
+  X,
 } from "lucide-react";
 
 function ResultsCarousel({
@@ -21,9 +23,12 @@ function ResultsCarousel({
   onShowLess,
   displayCount,
   totalResults,
+  isMobile = false,
+  isTablet = false,
 }) {
   const [hoveredResult, setHoveredResult] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [showMobileDetail, setShowMobileDetail] = useState(false);
   const scrollContainerRef = useRef(null);
   const [prevResultsCount, setPrevResultsCount] = useState(
     results?.length || 0,
@@ -36,10 +41,8 @@ function ResultsCarousel({
       results.length > prevResultsCount &&
       scrollContainerRef.current
     ) {
-      // Small delay to ensure new cards are rendered
       setTimeout(() => {
         const container = scrollContainerRef.current;
-        // Scroll to show new items (scroll to end minus a bit to show some new cards)
         const scrollAmount = container.scrollWidth - container.clientWidth;
         container.scrollTo({
           left: scrollAmount,
@@ -53,6 +56,7 @@ function ResultsCarousel({
   if (!results || results.length === 0) return null;
 
   const handleMouseEnter = (result, event) => {
+    if (isMobile) return;
     const rect = event.currentTarget.getBoundingClientRect();
     setTooltipPosition({
       x: rect.left + rect.width / 2,
@@ -62,83 +66,306 @@ function ResultsCarousel({
   };
 
   const handleMouseLeave = () => {
+    if (isMobile) return;
     setHoveredResult(null);
   };
 
-  const handleShowMore = () => {
-    if (onShowMore) {
-      onShowMore();
+  const handleCardClick = (index) => {
+    onSelect(index);
+    if (isMobile) {
+      setShowMobileDetail(true);
     }
   };
 
+  const selectedResult = results[selectedIndex];
+
   return (
-    <div className="absolute bottom-6 left-0 right-0 px-4">
-      {/* Hover Tooltip - Rendered outside scroll container */}
-      {hoveredResult && (
-        <HoverTooltip result={hoveredResult} position={tooltipPosition} />
+    <>
+      {/* Mobile Detail Panel */}
+      {isMobile && showMobileDetail && selectedResult && (
+        <MobileDetailPanel
+          result={selectedResult}
+          onClose={() => setShowMobileDetail(false)}
+        />
       )}
 
-      <div className="flex items-center gap-2">
-        {/* Less button */}
-        {onShowLess && (
-          <button
-            onClick={onShowLess}
-            className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-3 
-                       rounded-xl bg-dark-700/90 border border-glass-border 
-                       hover:bg-accent/20 hover:border-accent/50 transition-all duration-200"
-            title="Show less"
-          >
-            <ChevronLeft className="w-5 h-5 text-accent-light" />
-            <span className="text-xs text-gray-400">Less</span>
-          </button>
+      {/* Main Carousel */}
+      <div
+        className={`absolute ${isMobile ? "bottom-2 left-0 right-0 px-2" : "bottom-6 left-0 right-0 px-4"}`}
+      >
+        {/* Desktop Hover Tooltip - Only render on non-mobile */}
+        {!isMobile && hoveredResult && (
+          <HoverTooltip result={hoveredResult} position={tooltipPosition} />
         )}
 
-        {/* Scrollable cards container */}
-        <div
-          ref={scrollContainerRef}
-          className="flex-1 overflow-x-auto pb-2 scrollbar-hide"
-        >
-          <div className="flex gap-3 w-max">
-            {results.map((result, index) => (
-              <ResultCard
-                key={result.placeId}
-                result={result}
-                index={index}
-                isSelected={index === selectedIndex}
-                onClick={() => onSelect(index)}
-                onMouseEnter={(e) => handleMouseEnter(result, e)}
-                onMouseLeave={handleMouseLeave}
+        <div className="flex items-center gap-1.5 md:gap-2">
+          {/* Less button */}
+          {onShowLess && (
+            <button
+              onClick={onShowLess}
+              className={`flex-shrink-0 flex flex-col items-center justify-center gap-0.5 
+                         ${isMobile ? "px-2 py-2" : "px-3 py-3"} 
+                         rounded-xl bg-dark-700/90 border border-glass-border 
+                         hover:bg-accent/20 hover:border-accent/50 transition-all duration-200`}
+              title="Show less"
+            >
+              <ChevronLeft
+                className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-accent-light`}
               />
-            ))}
+              <span
+                className={`${isMobile ? "text-[10px]" : "text-xs"} text-gray-400`}
+              >
+                Less
+              </span>
+            </button>
+          )}
+
+          {/* Scrollable cards container */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-x-auto pb-2 scrollbar-hide"
+          >
+            <div className="flex gap-2 md:gap-3 w-max">
+              {results.map((result, index) => (
+                <ResultCard
+                  key={result.placeId}
+                  result={result}
+                  index={index}
+                  isSelected={index === selectedIndex}
+                  onClick={() => handleCardClick(index)}
+                  onMouseEnter={(e) => handleMouseEnter(result, e)}
+                  onMouseLeave={handleMouseLeave}
+                  isMobile={isMobile}
+                  isTablet={isTablet}
+                />
+              ))}
+            </div>
           </div>
+
+          {/* More button */}
+          {onShowMore && (
+            <button
+              onClick={onShowMore}
+              className={`flex-shrink-0 flex flex-col items-center justify-center gap-0.5 
+                         ${isMobile ? "px-2 py-2" : "px-3 py-3"} 
+                         rounded-xl bg-dark-700/90 border border-glass-border 
+                         hover:bg-accent/20 hover:border-accent/50 transition-all duration-200`}
+              title="Show more"
+            >
+              <ChevronRight
+                className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-accent-light`}
+              />
+              <span
+                className={`${isMobile ? "text-[10px]" : "text-xs"} text-gray-400`}
+              >
+                More
+              </span>
+            </button>
+          )}
         </div>
 
-        {/* More button */}
-        {onShowMore && (
-          <button
-            onClick={handleShowMore}
-            className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-3 
-                       rounded-xl bg-dark-700/90 border border-glass-border 
-                       hover:bg-accent/20 hover:border-accent/50 transition-all duration-200"
-            title="Show more"
+        {/* Results count indicator */}
+        <div className="text-center mt-1.5 md:mt-2">
+          <span
+            className={`${isMobile ? "text-[10px]" : "text-xs"} text-gray-500`}
           >
-            <ChevronRight className="w-5 h-5 text-accent-light" />
-            <span className="text-xs text-gray-400">More</span>
-          </button>
-        )}
+            {results.length} of {totalResults} results
+            {isMobile && " • Tap for details"}
+          </span>
+        </div>
       </div>
+    </>
+  );
+}
 
-      {/* Results count indicator */}
-      <div className="text-center mt-2">
-        <span className="text-xs text-gray-500">
-          Showing {results.length} of {totalResults} results
-        </span>
+// ============ MOBILE DETAIL PANEL ============
+function MobileDetailPanel({ result, onClose }) {
+  const detourMinutes = Math.max(0, result.detour.minutes);
+  const detourDisplay = `+${detourMinutes} min`;
+  const totalTravelMinutes = Math.round(
+    result.detourRoute.durationSeconds / 60,
+  );
+  const hours = Math.floor(totalTravelMinutes / 60);
+  const minutes = totalTravelMinutes % 60;
+  const totalTimeDisplay =
+    hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
+
+  const handleOpenMaps = () => {
+    window.open(result.googleMapsUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleOpenSearch = () => {
+    const searchQuery = encodeURIComponent(`${result.name} ${result.address}`);
+    window.open(
+      `https://www.google.com/search?q=${searchQuery}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
+  // Prevent scroll on body when panel is open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[200]">
+      {/* Dark backdrop - fully opaque */}
+      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
+
+      {/* Panel */}
+      <div
+        className="absolute inset-x-0 bottom-0 bg-dark-900 border-t border-glass-border rounded-t-2xl 
+                   max-h-[75vh] flex flex-col slide-up-bottom"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
+      >
+        {/* Handle bar */}
+        <div className="flex-shrink-0 pt-3 pb-2 flex justify-center">
+          <div className="w-12 h-1.5 rounded-full bg-gray-600" />
+        </div>
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 p-2 rounded-full bg-dark-700 hover:bg-dark-600 text-gray-400"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {/* Photo */}
+          {result.photoUrl && (
+            <div className="h-36 w-full overflow-hidden rounded-xl mb-4">
+              <img
+                src={result.photoUrl}
+                alt={result.name}
+                className="w-full h-full object-cover"
+                onError={(e) => (e.target.style.display = "none")}
+              />
+            </div>
+          )}
+
+          {/* Name */}
+          <h3 className="text-xl font-bold text-white mb-2">{result.name}</h3>
+
+          {/* Rating Row */}
+          <div className="flex items-center gap-4 mb-3">
+            {result.rating && (
+              <div className="flex items-center gap-1.5">
+                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                <span className="text-white font-semibold text-lg">
+                  {result.rating}
+                </span>
+                <span className="text-gray-500 text-sm">
+                  ({result.userRatingCount?.toLocaleString() || 0})
+                </span>
+              </div>
+            )}
+            {result.isOpen !== null && (
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium
+                             ${result.isOpen ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}
+              >
+                {result.isOpen ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <XCircle className="w-4 h-4" />
+                )}
+                {result.isOpen ? "Open" : "Closed"}
+              </div>
+            )}
+          </div>
+
+          {/* Address */}
+          <div className="flex items-start gap-2.5 text-gray-400 mb-4">
+            <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5 text-accent-light" />
+            <span className="text-sm leading-relaxed">{result.address}</span>
+          </div>
+
+          {/* Time Info Card */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-dark-800 border border-glass-border mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-accent-light" />
+              </div>
+              <div>
+                <span className="text-2xl font-bold text-accent-light">
+                  {detourDisplay}
+                </span>
+                <p className="text-xs text-gray-500">detour time</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-1.5 text-gray-400">
+                <Timer className="w-4 h-4" />
+                <span className="text-sm font-medium">{totalTimeDisplay}</span>
+              </div>
+              <p className="text-xs text-gray-500">total trip</p>
+            </div>
+          </div>
+
+          {/* AI Analysis */}
+          {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
+            <div className="p-4 rounded-xl bg-accent/10 border border-accent/30 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-5 h-5 text-accent-light" />
+                <span className="text-sm text-accent-light font-semibold">
+                  AI Overview
+                </span>
+              </div>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                {result.aiAnalysis.explanation}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Fixed Action Buttons at bottom */}
+        <div className="flex-shrink-0 px-4 pt-3 pb-2 border-t border-glass-border bg-dark-900">
+          <div className="flex gap-3">
+            <button
+              onClick={handleOpenMaps}
+              className="flex-1 py-3.5 px-4 rounded-xl bg-accent hover:bg-accent-light 
+                         text-white font-semibold text-base
+                         flex items-center justify-center gap-2
+                         transition-all duration-200 active:scale-95"
+            >
+              <Navigation className="w-5 h-5" />
+              Open in Maps
+            </button>
+            <button
+              onClick={handleOpenSearch}
+              className="flex-1 py-3.5 px-4 rounded-xl bg-dark-700 hover:bg-dark-600
+                         text-white font-semibold text-base
+                         flex items-center justify-center gap-2 border border-glass-border
+                         transition-all duration-200 active:scale-95"
+            >
+              <Search className="w-5 h-5" />
+              Search
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
+// ============ DESKTOP HOVER TOOLTIP ============
 function HoverTooltip({ result, position }) {
+  const tooltipRef = useRef(null);
+  const [tooltipHeight, setTooltipHeight] = useState(0);
+
+  // Measure tooltip height after render but before paint
+  useLayoutEffect(() => {
+    if (tooltipRef.current) {
+      setTooltipHeight(tooltipRef.current.getBoundingClientRect().height);
+    }
+  }, [result]); // Re-measure when result changes
+
   const totalTravelMinutes = Math.round(
     result.detourRoute.durationSeconds / 60,
   );
@@ -149,26 +376,31 @@ function HoverTooltip({ result, position }) {
   const detourMinutes = Math.max(0, result.detour.minutes);
   const detourDisplay = `+${detourMinutes} min`;
 
-  // Gap between arrow tip and card top
-  // Arrow is 8px below tooltip (-bottom-2), plus 8px visual gap
-  const GAP = 16;
-  const topAlign = result.aiAnalysis
-    ? position.y - GAP - 350
-    : position.y - GAP - 250;
+  // Gap between tooltip bottom (arrow tip) and card top
+  const GAP = 22;
 
   // Ensure horizontal position stays within viewport
   const safeLeft = Math.min(Math.max(150, position.x), window.innerWidth - 150);
 
+  // Calculate top position: card top - gap - tooltip height
+  // This ensures the BOTTOM of the tooltip is always GAP pixels above the card
+  const calculatedTop = position.y - GAP - tooltipHeight;
+
+  // Ensure tooltip doesn't go above viewport
+  const safeTop = Math.max(10, calculatedTop);
+
   return (
     <div
-      className="fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl animate-fadeIn pointer-events-none"
+      ref={tooltipRef}
+      className={`fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl pointer-events-none
+                  ${tooltipHeight > 0 ? "animate-fadeIn" : "opacity-0"}`}
       style={{
         left: safeLeft,
-        top: topAlign,
-        transform: "translate(-50%, -100%)",
+        top: safeTop,
+        transform: "translateX(-50%)",
       }}
     >
-      {/* Photo - reduced height */}
+      {/* Photo */}
       {result.photoUrl && (
         <div className="h-24 w-full overflow-hidden rounded-t-xl">
           <img
@@ -212,7 +444,7 @@ function HoverTooltip({ result, position }) {
           </div>
         )}
 
-        {/* AI Analysis - compact */}
+        {/* AI Analysis */}
         {result.aiAnalysis && result.aiAnalysis.confidence !== null && (
           <div className="p-2 rounded-lg bg-accent/10 border border-accent/20">
             <div className="flex items-center gap-2">
@@ -249,6 +481,7 @@ function HoverTooltip({ result, position }) {
   );
 }
 
+// ============ RESULT CARD ============
 function ResultCard({
   result,
   index,
@@ -256,6 +489,8 @@ function ResultCard({
   onClick,
   onMouseEnter,
   onMouseLeave,
+  isMobile = false,
+  isTablet = false,
 }) {
   const handleOpenMaps = (e) => {
     e.stopPropagation();
@@ -283,6 +518,13 @@ function ResultCard({
   const detourMinutes = Math.max(0, result.detour.minutes);
   const detourDisplay = `+${detourMinutes} min`;
 
+  // Card width based on device
+  const cardWidthClass = isMobile
+    ? "w-44 min-w-44"
+    : isTablet
+      ? "w-48 min-w-48"
+      : "w-56";
+
   return (
     <div
       onClick={onClick}
@@ -290,7 +532,7 @@ function ResultCard({
       onMouseLeave={onMouseLeave}
       className={`
         glass-card cursor-pointer flex-shrink-0
-        w-56 p-3 space-y-2
+        ${cardWidthClass} ${isMobile ? "p-2.5" : "p-3"} ${isMobile ? "space-y-1.5" : "space-y-2"}
         transition-all duration-300 ease-out
         ${
           isSelected
@@ -300,11 +542,15 @@ function ResultCard({
       `}
     >
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-accent/30 text-accent-light text-xs font-bold flex items-center justify-center">
+      <div className="flex items-center gap-1.5 md:gap-2">
+        <span
+          className={`flex-shrink-0 ${isMobile ? "w-5 h-5 text-xs" : "w-5 h-5 text-xs"} rounded-full bg-accent/30 text-accent-light font-bold flex items-center justify-center`}
+        >
           {index + 1}
         </span>
-        <h3 className="font-semibold text-white truncate text-sm">
+        <h3
+          className={`font-semibold text-white truncate ${isMobile ? "text-xs" : "text-sm"}`}
+        >
           {result.name}
         </h3>
       </div>
@@ -312,38 +558,50 @@ function ResultCard({
       {/* Time Info */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5 text-accent-light" />
-          <span className="text-base font-bold text-accent-light">
+          <Clock
+            className={`${isMobile ? "w-3 h-3" : "w-3.5 h-3.5"} text-accent-light`}
+          />
+          <span
+            className={`${isMobile ? "text-sm" : "text-base"} font-bold text-accent-light`}
+          >
             {detourDisplay}
           </span>
         </div>
-        <div className="flex items-center gap-1 text-gray-400 text-xs">
-          <Timer className="w-3 h-3" />
+        <div
+          className={`flex items-center gap-1 text-gray-400 ${isMobile ? "text-[10px]" : "text-xs"}`}
+        >
+          <Timer className={`${isMobile ? "w-2.5 h-2.5" : "w-3 h-3"}`} />
           <span>{totalTimeDisplay}</span>
         </div>
       </div>
 
       {/* Rating & Status */}
-      <div className="flex items-center gap-2 text-xs">
+      <div
+        className={`flex items-center gap-1.5 md:gap-2 ${isMobile ? "text-[11px]" : "text-xs"}`}
+      >
         {result.rating && (
-          <div className="flex items-center gap-1">
-            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+          <div className="flex items-center gap-0.5 md:gap-1">
+            <Star
+              className={`${isMobile ? "w-3 h-3" : "w-3 h-3"} text-yellow-500 fill-yellow-500`}
+            />
             <span className="text-white font-medium">{result.rating}</span>
           </div>
         )}
 
         {result.isOpen !== null && (
           <div
-            className={`flex items-center gap-1 ${result.isOpen ? "text-green-400" : "text-red-400"}`}
+            className={`flex items-center gap-0.5 md:gap-1 ${result.isOpen ? "text-green-400" : "text-red-400"}`}
           >
             {result.isOpen ? (
               <>
-                <CheckCircle className="w-3 h-3" />
+                <CheckCircle
+                  className={`${isMobile ? "w-3 h-3" : "w-3 h-3"}`}
+                />
                 <span>Open</span>
               </>
             ) : (
               <>
-                <XCircle className="w-3 h-3" />
+                <XCircle className={`${isMobile ? "w-3 h-3" : "w-3 h-3"}`} />
                 <span>Closed</span>
               </>
             )}
@@ -351,31 +609,35 @@ function ResultCard({
         )}
       </div>
 
-      {/* Address */}
-      <div className="text-xs text-gray-400 truncate">{result.address}</div>
+      {/* Address - truncated on mobile */}
+      <div
+        className={`${isMobile ? "text-[10px]" : "text-xs"} text-gray-400 truncate`}
+      >
+        {result.address}
+      </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-2">
+      <div className={`flex gap-1.5 md:gap-2 ${isMobile ? "pt-0.5" : ""}`}>
         <button
           onClick={handleOpenMaps}
-          className="flex-1 py-1.5 px-2 rounded-lg bg-accent hover:bg-accent-light 
-                     text-white font-medium text-xs
+          className={`flex-1 ${isMobile ? "py-1.5 px-2 text-[11px]" : "py-1.5 px-2 text-xs"} rounded-lg bg-accent hover:bg-accent-light 
+                     text-white font-medium
                      flex items-center justify-center gap-1
-                     transition-all duration-200"
+                     transition-all duration-200`}
           title="Open route in Google Maps"
         >
-          <Navigation className="w-3 h-3" />
+          <Navigation className={`${isMobile ? "w-3 h-3" : "w-3 h-3"}`} />
           Route
         </button>
         <button
           onClick={handleOpenSearch}
-          className="flex-1 py-1.5 px-2 rounded-lg bg-dark-600 hover:bg-dark-500
-                     text-gray-300 hover:text-white font-medium text-xs
+          className={`flex-1 ${isMobile ? "py-1.5 px-2 text-[11px]" : "py-1.5 px-2 text-xs"} rounded-lg bg-dark-600 hover:bg-dark-500
+                     text-gray-300 hover:text-white font-medium
                      flex items-center justify-center gap-1 border border-glass-border
-                     transition-all duration-200"
+                     transition-all duration-200`}
           title="Search on Google"
         >
-          <Search className="w-3 h-3" />
+          <Search className={`${isMobile ? "w-3 h-3" : "w-3 h-3"}`} />
           Search
         </button>
       </div>

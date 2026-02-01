@@ -205,11 +205,15 @@ function MapContainer({
       styles: MAP_STYLES,
       disableDefaultUI: true,
       zoomControl: true,
+      zoomControlOptions: {
+        position: window.google?.maps?.ControlPosition?.RIGHT_CENTER,
+      },
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
       clickableIcons: false,
       gestureHandling: "greedy",
+      keyboardShortcuts: false, // Removes "Keyboard shortcuts" text
     }),
     [],
   );
