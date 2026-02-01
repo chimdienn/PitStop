@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import {
   Star,
   Clock,
@@ -356,6 +356,16 @@ function MobileDetailPanel({ result, onClose }) {
 
 // ============ DESKTOP HOVER TOOLTIP ============
 function HoverTooltip({ result, position }) {
+  const tooltipRef = useRef(null);
+  const [tooltipHeight, setTooltipHeight] = useState(0);
+
+  // Measure tooltip height after render but before paint
+  useLayoutEffect(() => {
+    if (tooltipRef.current) {
+      setTooltipHeight(tooltipRef.current.getBoundingClientRect().height);
+    }
+  }, [result]); // Re-measure when result changes
+
   const totalTravelMinutes = Math.round(
     result.detourRoute.durationSeconds / 60,
   );
@@ -366,19 +376,28 @@ function HoverTooltip({ result, position }) {
   const detourMinutes = Math.max(0, result.detour.minutes);
   const detourDisplay = `+${detourMinutes} min`;
 
-  // Simple gap - translateY(-100%) handles positioning the tooltip above this point
-  const GAP = 16;
+  // Gap between tooltip bottom (arrow tip) and card top
+  const GAP = 22;
 
   // Ensure horizontal position stays within viewport
   const safeLeft = Math.min(Math.max(150, position.x), window.innerWidth - 150);
 
+  // Calculate top position: card top - gap - tooltip height
+  // This ensures the BOTTOM of the tooltip is always GAP pixels above the card
+  const calculatedTop = position.y - GAP - tooltipHeight;
+
+  // Ensure tooltip doesn't go above viewport
+  const safeTop = Math.max(10, calculatedTop);
+
   return (
     <div
-      className="fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl animate-fadeIn pointer-events-none"
+      ref={tooltipRef}
+      className={`fixed z-[100] w-72 bg-[#111118] border border-glass-border rounded-xl shadow-2xl pointer-events-none
+                  ${tooltipHeight > 0 ? "animate-fadeIn" : "opacity-0"}`}
       style={{
         left: safeLeft,
-        top: position.y - GAP,
-        transform: "translate(-50%, -100%)",
+        top: safeTop,
+        transform: "translateX(-50%)",
       }}
     >
       {/* Photo */}
